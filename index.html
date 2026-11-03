@@ -1,0 +1,3000 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SIPUS SMAN 1 PAMIJAHAN — Sistem Informasi Perpustakaan</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E📚%3C/text%3E%3C/svg%3E" />
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+<style>
+  * { -webkit-tap-highlight-color: transparent; }
+  body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+  .fade-in { animation: fadeIn .25s ease-out; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  .card-design { background: linear-gradient(135deg, #4338ca 0%, #312e81 100%); }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+  .nav-btn { transition: all .15s ease; }
+  .photo-avatar { width: 44px; height: 44px; object-fit: cover; border-radius: 50%; }
+  .card-photo { width: 44px; height: 44px; object-fit: cover; border-radius: 50%; border: 2px solid rgba(255,255,255,0.4); }
+  #qr-reader video { border-radius: 0.5rem; }
+  #qr-reader__scan_region { background: #0f172a; }
+  #qr-reader__dashboard_section_csr button {
+    background: #4338ca !important; border: none !important;
+    padding: 6px 12px !important; border-radius: 6px !important;
+    color: white !important; font-weight: 600 !important; cursor: pointer !important;
+    margin: 4px !important; font-size: 12px !important;
+  }
+  .import-preview-row { transition: background .15s; }
+  .import-preview-row:hover { background: #f8fafc; }
+  .sync-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .shake { animation: shake .4s ease; }
+  @keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 50% { transform: translateX(8px); } 75% { transform: translateX(-4px); } }
+</style>
+</head>
+
+<body class="bg-slate-100 min-h-screen">
+
+<!-- ==================== LOGIN ==================== -->
+<div id="login-screen" class="fixed inset-0 bg-gradient-to-br from-indigo-700 to-indigo-900 flex items-center justify-center z-[100] p-4 overflow-y-auto">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 fade-in my-4">
+    <div class="text-center mb-6">
+      <div class="text-5xl mb-2">📚</div>
+      <h1 class="text-2xl font-bold text-slate-800">SIPUS</h1>
+      <p class="text-sm font-bold text-indigo-600 -mt-1">SMAN 1 PAMIJAHAN</p>
+      <p class="text-slate-500 text-xs mt-1">Sistem Informasi Perpustakaan</p>
+    </div>
+
+    <!-- PILIH ROLE -->
+    <div class="mb-5">
+      <label class="block text-xs font-semibold text-slate-500 mb-2 text-center uppercase tracking-wide">Pilih Role</label>
+      <div class="grid grid-cols-3 gap-2">
+        <button id="role-admin" onclick="selectRole('admin')"
+                class="role-btn bg-indigo-600 text-white rounded-lg p-3 transition">
+          <div class="text-2xl mb-1">🔑</div>
+          <div class="text-xs font-bold">Admin</div>
+        </button>
+        <button id="role-pustakawan" onclick="selectRole('pustakawan')"
+                class="role-btn bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg p-3 transition">
+          <div class="text-2xl mb-1">📖</div>
+          <div class="text-xs font-bold">Pustakawan</div>
+        </button>
+        <button id="role-siswa" onclick="selectRole('siswa')"
+                class="role-btn bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg p-3 transition">
+          <div class="text-2xl mb-1">🎓</div>
+          <div class="text-xs font-bold">Murid</div>
+        </button>
+      </div>
+    </div>
+
+    <!-- FORM PASSWORD -->
+    <div class="space-y-3">
+      <div>
+        <label class="block text-sm font-medium text-slate-600 mb-1">
+          Password <span id="login-role-label" class="text-indigo-600 font-semibold">(Admin)</span>
+        </label>
+        <div class="relative">
+          <input id="login-password" type="password" placeholder="Masukkan password..."
+                 class="w-full border rounded-lg px-3 py-2.5 pr-10 text-sm focus:ring-2 focus:ring-indigo-400 outline-none"
+                 onkeypress="if(event.key==='Enter') handleLogin()" />
+          <button type="button" onclick="togglePasswordVisibility()"
+                  class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1">
+            <span id="toggle-eye">👁️</span>
+          </button>
+        </div>
+      </div>
+
+      <button onclick="handleLogin()"
+              class="w-full bg-gradient-to-r from-indigo-600 to-indigo-800 hover:from-indigo-700 hover:to-indigo-900 text-white font-bold py-3 rounded-lg shadow-lg transition">
+        🔐 Masuk Aplikasi
+      </button>
+    </div>
+
+    <!-- LUPA PASSWORD -->
+    <div class="mt-4 text-center">
+      <button onclick="showPasswordHint()" class="text-xs text-slate-400 hover:text-indigo-600 underline">
+        💡 Lupa password?
+      </button>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="mt-6 pt-4 border-t border-slate-200 text-center">
+      <p class="text-[10px] text-slate-400">© 2026 SIPUS — SMAN 1 PAMIJAHAN</p>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== NAVBAR ==================== -->
+<nav id="app-nav" class="hidden bg-indigo-700 text-white shadow-lg sticky top-0 z-40">
+  <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-2 flex-wrap">
+    <div class="flex items-center gap-2">
+      <span class="text-2xl">📚</span>
+      <div>
+        <h1 class="text-base font-bold leading-tight">SIPUS</h1>
+        <div class="text-[10px] opacity-90 leading-tight">SMAN 1 PAMIJAHAN</div>
+      </div>
+      <span class="text-xs bg-indigo-500 px-2 py-0.5 rounded-full ml-1">v4.3</span>
+      <span id="sync-indicator" class="text-xs bg-green-500 px-2 py-0.5 rounded-full flex items-center gap-1 ml-1">
+        <span class="sync-dot" style="background: #86efac;"></span>
+        <span>Live</span>
+      </span>
+    </div>
+    <div class="flex flex-wrap gap-1 text-sm">
+      <button data-tab="dashboard" class="nav-btn px-3 py-2 rounded-lg hover:bg-indigo-600">📊 Dashboard</button>
+      <button data-tab="books"     class="nav-btn px-3 py-2 rounded-lg hover:bg-indigo-600">📖 Buku</button>
+      <button data-tab="members"   class="nav-btn px-3 py-2 rounded-lg hover:bg-indigo-600">👥 Anggota</button>
+      <button data-tab="cards"     class="nav-btn px-3 py-2 rounded-lg hover:bg-indigo-600">🎫 Kartu</button>
+      <button data-tab="import"    class="nav-btn px-3 py-2 rounded-lg hover:bg-indigo-600">📥 Import</button>
+      <button data-tab="sheets"    class="nav-btn px-3 py-2 rounded-lg hover:bg-indigo-600">📊 Sheets</button>
+      <button data-tab="barcode"   class="nav-btn px-3 py-2 rounded-lg hover:bg-indigo-600">🏷️ Barcode</button>
+      <button data-tab="loans"     class="nav-btn px-3 py-2 rounded-lg hover:bg-indigo-600">🔄 Sirkulasi</button>
+      <button data-tab="reports"   class="nav-btn px-3 py-2 rounded-lg hover:bg-indigo-600">📊 Laporan</button>
+      <button data-tab="settings"  class="nav-btn px-3 py-2 rounded-lg hover:bg-indigo-600">⚙️ Pengaturan</button>
+    </div>
+    <div class="flex items-center gap-2">
+      <div class="text-right text-xs leading-tight hidden md:block">
+        <div id="nav-username" class="font-semibold">-</div>
+        <div id="nav-role" class="opacity-75">-</div>
+      </div>
+      <button onclick="logout()" class="bg-red-500 hover:bg-red-600 px-3 py-2 rounded-lg text-xs font-bold" title="Logout">
+        🚪 <span class="hidden md:inline">Keluar</span>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<main id="app-main" class="hidden max-w-7xl mx-auto p-4 md:p-6">
+
+<!-- ==================== DASHBOARD ==================== -->
+<section id="tab-dashboard" class="tab-content fade-in">
+  <h2 class="text-2xl font-bold text-slate-800 mb-4">Dashboard</h2>
+  <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+    <div class="bg-white rounded-xl shadow p-4 border-l-4 border-blue-500">
+      <div class="text-xs text-slate-500">Judul Buku</div>
+      <div id="stat-titles" class="text-2xl font-bold text-blue-600">0</div>
+    </div>
+    <div class="bg-white rounded-xl shadow p-4 border-l-4 border-indigo-500">
+      <div class="text-xs text-slate-500">Total Eksemplar</div>
+      <div id="stat-copies" class="text-2xl font-bold text-indigo-600">0</div>
+    </div>
+    <div class="bg-white rounded-xl shadow p-4 border-l-4 border-amber-500">
+      <div class="text-xs text-slate-500">Dipinjam</div>
+      <div id="stat-borrowed" class="text-2xl font-bold text-amber-600">0</div>
+    </div>
+    <div class="bg-white rounded-xl shadow p-4 border-l-4 border-green-500">
+      <div class="text-xs text-slate-500">Tersedia</div>
+      <div id="stat-available" class="text-2xl font-bold text-green-600">0</div>
+    </div>
+    <div class="bg-white rounded-xl shadow p-4 border-l-4 border-purple-500">
+      <div class="text-xs text-slate-500">Anggota</div>
+      <div id="stat-members" class="text-2xl font-bold text-purple-600">0</div>
+    </div>
+  </div>
+
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="bg-white rounded-xl shadow p-5">
+      <h3 class="font-bold text-slate-700 mb-3 text-sm">📌 Aktivitas Terbaru</h3>
+      <div id="recent-activity" class="text-sm text-slate-500">Belum ada aktivitas.</div>
+    </div>
+    <div class="bg-white rounded-xl shadow p-5">
+      <h3 class="font-bold text-slate-700 mb-3 text-sm">⚠️ Perlu Perhatian</h3>
+      <div id="attention-list" class="text-sm text-slate-500">Semua aman 👍</div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== BUKU ==================== -->
+<section id="tab-books" class="tab-content hidden fade-in">
+  <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
+    <h2 class="text-2xl font-bold text-slate-800">Daftar Buku</h2>
+    <button onclick="openBookModal()" class="add-book-btn bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow">
+      + Tambah Buku
+    </button>
+  </div>
+
+  <input id="book-search" type="text" placeholder="🔍 Cari judul / pengarang / ISBN / nomor panggil..."
+         class="w-full border border-slate-300 rounded-lg px-4 py-2.5 mb-4 focus:ring-2 focus:ring-indigo-400 outline-none" />
+
+  <div class="bg-white rounded-xl shadow overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-100 text-slate-700 text-left text-xs">
+          <tr>
+            <th class="p-3">No. Panggil</th>
+            <th class="p-3">Judul / Pengarang</th>
+            <th class="p-3">Penerbit / Tahun</th>
+            <th class="p-3 text-center">Bahasa</th>
+            <th class="p-3 text-center">Total</th>
+            <th class="p-3 text-center">Dipinjam</th>
+            <th class="p-3 text-center">Tersedia</th>
+            <th class="p-3 text-center">Aksi</th>
+          </tr>
+        </thead>
+        <tbody id="books-tbody"></tbody>
+      </table>
+    </div>
+    <div id="books-empty" class="p-8 text-center text-slate-400 hidden">Tidak ada buku.</div>
+  </div>
+</section>
+
+<!-- ==================== ANGGOTA ==================== -->
+<section id="tab-members" class="tab-content hidden fade-in">
+  <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
+    <h2 class="text-2xl font-bold text-slate-800">Anggota Perpustakaan</h2>
+    <div class="flex gap-2">
+      <button onclick="openMemberImportModal()" class="add-member-btn bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow">
+        📥 Import
+      </button>
+      <button onclick="openMemberModal()" class="add-member-btn bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow">
+        + Tambah
+      </button>
+    </div>
+  </div>
+
+  <input id="member-search" type="text" placeholder="🔍 Cari nama / NIS / kode anggota..."
+         class="w-full border border-slate-300 rounded-lg px-4 py-2.5 mb-4 focus:ring-2 focus:ring-indigo-400 outline-none" />
+
+  <div class="bg-white rounded-xl shadow overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-100 text-slate-700 text-left text-xs">
+          <tr>
+            <th class="p-3">Foto</th>
+            <th class="p-3">Kode</th>
+            <th class="p-3">NIS</th>
+            <th class="p-3">Nama</th>
+            <th class="p-3">Kelas</th>
+            <th class="p-3">Status</th>
+            <th class="p-3 text-center">Aktif</th>
+            <th class="p-3 text-center">Aksi</th>
+          </tr>
+        </thead>
+        <tbody id="members-tbody"></tbody>
+      </table>
+    </div>
+    <div id="members-empty" class="p-8 text-center text-slate-400 hidden">Belum ada anggota.</div>
+  </div>
+</section>
+
+<!-- ==================== KARTU ==================== -->
+<section id="tab-cards" class="tab-content hidden fade-in">
+  <h2 class="text-2xl font-bold text-slate-800 mb-4">Kartu Perpustakaan</h2>
+  <div class="bg-white rounded-xl shadow p-5 mb-5">
+    <div class="flex flex-wrap gap-3 items-end">
+      <div class="flex-1 min-w-[240px]">
+        <label class="block text-sm font-medium text-slate-600 mb-1">Pilih Anggota</label>
+        <select id="card-member-select" class="w-full border rounded-lg px-3 py-2.5 outline-none">
+          <option value="">-- Pilih --</option>
+        </select>
+      </div>
+      <button onclick="previewCard()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-5 py-2.5 rounded-lg">👁️ Preview</button>
+      <button onclick="printSingleCard()" class="bg-green-600 hover:bg-green-700 text-white font-semibold px-5 py-2.5 rounded-lg">🖨️ Cetak</button>
+      <button onclick="printAllCards()" class="bg-amber-600 hover:bg-amber-700 text-white font-semibold px-5 py-2.5 rounded-lg">📚 Semua</button>
+    </div>
+  </div>
+  <div id="card-preview" class="flex justify-center"></div>
+</section>
+
+<!-- ==================== IMPORT ==================== -->
+<section id="tab-import" class="tab-content hidden fade-in">
+  <h2 class="text-2xl font-bold text-slate-800 mb-4">📥 Import Data Excel</h2>
+
+  <div class="bg-white rounded-xl shadow p-5 mb-5">
+    <div class="flex items-center gap-2 mb-4">
+      <div class="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-sm">1</div>
+      <h3 class="font-bold text-slate-800">Download Template (opsional)</h3>
+    </div>
+    <p class="text-xs text-slate-500 mb-4">
+      Gunakan template ini supaya format kolom sesuai. Jika sudah punya file sendiri, langsung ke step 2.
+    </p>
+    <div class="grid md:grid-cols-3 gap-3">
+      <button onclick="downloadTemplate('buku')"
+              class="bg-blue-50 border-2 border-blue-200 hover:border-blue-500 hover:bg-blue-100 rounded-lg p-4 text-left transition">
+        <div class="text-2xl mb-1">📚</div>
+        <div class="font-bold text-blue-800 text-sm">Template BUKU</div>
+        <div class="text-xs text-blue-600 mt-1">File .xlsx</div>
+      </button>
+      <button onclick="downloadTemplate('anggota')"
+              class="bg-emerald-50 border-2 border-emerald-200 hover:border-emerald-500 hover:bg-emerald-100 rounded-lg p-4 text-left transition">
+        <div class="text-2xl mb-1">👥</div>
+        <div class="font-bold text-emerald-800 text-sm">Template ANGGOTA</div>
+        <div class="text-xs text-emerald-600 mt-1">File .xlsx</div>
+      </button>
+      <button onclick="downloadTemplate('kombinasi')"
+              class="bg-indigo-50 border-2 border-indigo-200 hover:border-indigo-500 hover:bg-indigo-100 rounded-lg p-4 text-left transition">
+        <div class="text-2xl mb-1">📦</div>
+        <div class="font-bold text-indigo-800 text-sm">Template GABUNGAN</div>
+        <div class="text-xs text-indigo-600 mt-1">1 file, 2 sheet</div>
+      </button>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-xl shadow p-5 mb-5">
+    <div class="flex items-center gap-2 mb-4">
+      <div class="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-sm">2</div>
+      <h3 class="font-bold text-slate-800">Upload File Excel</h3>
+    </div>
+
+    <div id="drop-zone" class="border-2 border-dashed border-slate-300 hover:border-indigo-400 hover:bg-indigo-50 rounded-xl p-8 text-center cursor-pointer transition">
+      <input id="file-input" type="file" accept=".csv,.xlsx,.xls" class="hidden" />
+      <div id="drop-content">
+        <div class="text-4xl mb-2">📤</div>
+        <p class="text-slate-600 font-medium">Klik atau tarik file ke sini</p>
+        <p class="text-slate-400 text-xs mt-1">Format: .xlsx, .xls, .csv — max 10 MB</p>
+      </div>
+    </div>
+
+    <div id="file-info" class="hidden mt-4 p-3 bg-green-50 border border-green-200 rounded-lg flex justify-between items-center">
+      <div class="flex items-center gap-2 min-w-0">
+        <span class="text-2xl">📄</span>
+        <div class="min-w-0">
+          <div id="file-name" class="text-sm text-green-800 font-medium truncate"></div>
+          <div id="file-size" class="text-xs text-green-600"></div>
+        </div>
+      </div>
+      <button onclick="resetUpload()" class="text-red-500 hover:text-red-700 text-sm font-bold px-2">✕</button>
+    </div>
+  </div>
+
+  <div id="preview-panel" class="bg-white rounded-xl shadow p-5 mb-5 hidden">
+    <div class="flex items-center gap-2 mb-4">
+      <div class="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-sm">3</div>
+      <h3 class="font-bold text-slate-800">Preview & Konfirmasi</h3>
+    </div>
+    <div id="preview-summary" class="mb-4"></div>
+    <div id="preview-table" class="border rounded-lg overflow-hidden mb-4 max-h-96 overflow-y-auto"></div>
+    <div class="flex gap-2">
+      <button onclick="resetUpload()" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-3 rounded-lg">
+        ← Ganti File
+      </button>
+      <button id="btn-confirm-import" onclick="confirmImport()"
+              class="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg">
+        ✅ Konfirmasi & Simpan
+      </button>
+    </div>
+  </div>
+
+  <div id="import-result" class="hidden"></div>
+</section>
+
+<!-- ==================== SHEETS (APPS SCRIPT) ==================== -->
+<section id="tab-sheets" class="tab-content hidden fade-in">
+  <h2 class="text-2xl font-bold text-slate-800 mb-4">📊 Google Sheets Sync</h2>
+
+  <div id="connection-panel" class="bg-white rounded-xl shadow p-5 mb-5">
+    <div class="flex items-center justify-between flex-wrap gap-3">
+      <div class="flex items-center gap-3">
+        <div id="connection-icon" class="text-3xl">🔌</div>
+        <div>
+          <div id="connection-title" class="font-bold text-slate-800">Memeriksa koneksi...</div>
+          <div id="connection-subtitle" class="text-xs text-slate-500">Menghubungi Google Apps Script</div>
+        </div>
+      </div>
+      <div class="flex gap-2">
+        <button onclick="testConnection()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2 rounded-lg text-sm">
+          🔄 Test Ulang
+        </button>
+      </div>
+    </div>
+
+    <div class="mt-4 pt-4 border-t border-slate-200">
+      <div class="text-xs text-slate-500 mb-2">Endpoint Apps Script:</div>
+      <div class="bg-slate-50 rounded px-3 py-2 text-xs font-mono text-slate-600 break-all">
+        https://script.google.com/macros/s/AKfycbzDENCFKpORKxRW9rs3-L9YlgjQDfrqAC1eHUdUEsTx_TT6qmdj2GkGrFsBwsW0vde3Iw/exec
+      </div>
+    </div>
+  </div>
+
+  <div class="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl p-5 mb-5">
+    <div class="flex items-start gap-3">
+      <div class="text-3xl">✨</div>
+      <div class="flex-1 text-sm text-emerald-900">
+        <h3 class="font-bold mb-2">Auto-Sync Aktif</h3>
+        <p class="text-xs mb-2">
+          Setiap kali Anda menambah buku/anggota (manual atau import), datanya <b>otomatis tersimpan di Google Sheets</b>.
+        </p>
+        <div class="flex flex-wrap gap-2 mt-2">
+          <label class="flex items-center gap-2 cursor-pointer bg-white rounded-lg px-3 py-1.5 border">
+            <input id="autosync-toggle" type="checkbox" class="w-4 h-4" checked />
+            <span class="text-xs font-medium">Auto-sync ON</span>
+          </label>
+          <span id="autosync-status" class="text-xs px-3 py-1.5 rounded-lg bg-green-100 text-green-800 flex items-center gap-1">
+            <span class="sync-dot" style="background: #22c55e;"></span> Aktif
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-xl shadow p-5 mb-5">
+    <h3 class="font-bold text-slate-800 mb-3">⚡ Aksi Manual</h3>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <button onclick="syncAllToSheets()" id="btn-sync-all"
+              class="bg-amber-500 hover:bg-amber-600 text-white font-semibold py-3 rounded-lg text-sm">
+        ⬆️ Push Semua ke Sheets
+      </button>
+      <button onclick="pullFromSheets()" id="btn-pull-sheets"
+              class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 rounded-lg text-sm">
+        ⬇️ Tarik dari Sheets
+      </button>
+      <button onclick="viewSheetsInfo()"
+              class="bg-slate-500 hover:bg-slate-600 text-white font-semibold py-3 rounded-lg text-sm">
+        📋 Lihat Info
+      </button>
+      <button onclick="openSheetsUrl()"
+              class="bg-green-500 hover:bg-green-600 text-white font-semibold py-3 rounded-lg text-sm">
+        📊 Buka Sheets
+      </button>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-xl shadow p-5 mb-5">
+    <h3 class="font-bold text-slate-800 mb-3">📈 Statistik</h3>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div class="bg-blue-50 rounded-lg p-3 text-center">
+        <div id="stat-sync-books" class="text-2xl font-bold text-blue-600">0</div>
+        <div class="text-xs text-slate-600">Buku di Sheets</div>
+      </div>
+      <div class="bg-emerald-50 rounded-lg p-3 text-center">
+        <div id="stat-sync-members" class="text-2xl font-bold text-emerald-600">0</div>
+        <div class="text-xs text-slate-600">Anggota di Sheets</div>
+      </div>
+      <div class="bg-amber-50 rounded-lg p-3 text-center">
+        <div id="stat-sync-last" class="text-lg font-bold text-amber-600">-</div>
+        <div class="text-xs text-slate-600">Sync Terakhir</div>
+      </div>
+      <div class="bg-purple-50 rounded-lg p-3 text-center">
+        <div id="stat-sync-count" class="text-2xl font-bold text-purple-600">0</div>
+        <div class="text-xs text-slate-600">Total Sync</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-xl shadow p-5">
+    <h3 class="font-bold text-slate-800 mb-3">📝 Log Aktivitas Sync</h3>
+    <div id="sync-log" class="bg-slate-50 rounded-lg p-3 max-h-64 overflow-y-auto font-mono text-xs text-slate-600">
+      <div class="text-slate-400">Belum ada aktivitas sync.</div>
+    </div>
+    <button onclick="clearSyncLog()" class="mt-3 text-xs text-red-500 hover:text-red-700 underline">
+      🗑️ Clear Log
+    </button>
+  </div>
+</section>
+
+<!-- ==================== BARCODE ==================== -->
+<section id="tab-barcode" class="tab-content hidden fade-in">
+  <h2 class="text-2xl font-bold text-slate-800 mb-4">Barcode Buku</h2>
+  <div class="bg-white rounded-xl shadow p-5">
+    <select id="barcode-book-select" class="w-full border rounded-lg px-4 py-2.5 mb-4 outline-none">
+      <option value="">-- Pilih Buku --</option>
+    </select>
+    <div class="flex flex-wrap gap-2 mb-4">
+      <button onclick="generateBarcodes()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-5 py-2.5 rounded-lg">🏷️ Tampilkan</button>
+      <button onclick="printBarcodes()" id="btn-print-barcode" disabled class="bg-green-600 hover:bg-green-700 disabled:bg-slate-300 text-white font-semibold px-5 py-2.5 rounded-lg">🖨️ Cetak PDF</button>
+    </div>
+    <div id="barcode-result" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3"></div>
+  </div>
+</section>
+
+<!-- ==================== SIRKULASI ==================== -->
+<section id="tab-loans" class="tab-content hidden fade-in">
+  <h2 class="text-2xl font-bold text-slate-800 mb-4">Sirkulasi</h2>
+  <div class="grid md:grid-cols-2 gap-5">
+    <div class="bg-white rounded-xl shadow p-5">
+      <h3 class="font-bold text-slate-700 mb-4">📕 Peminjaman Baru</h3>
+
+      <div class="bg-indigo-50 border-2 border-dashed border-indigo-300 rounded-lg p-3 mb-4">
+        <div class="flex items-center justify-between mb-2">
+          <label class="text-xs font-bold text-indigo-700">🎫 SCAN KARTU</label>
+          <button onclick="openCameraScanner('member')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-2 py-1 rounded">📸 Kamera</button>
+        </div>
+        <div class="flex gap-2">
+          <input id="scan-member" type="text" placeholder="Scan / ketik kode anggota..." class="flex-1 border border-indigo-300 rounded-lg px-3 py-2 text-sm font-mono outline-none" />
+          <button onclick="lookupMember()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-3 py-2 rounded-lg">🔍</button>
+        </div>
+        <div id="member-found" class="hidden mt-2 bg-white rounded-lg p-2 border border-green-300 flex items-center gap-2">
+          <div id="found-photo-wrap" class="text-2xl">👤</div>
+          <div class="flex-1 min-w-0">
+            <div id="found-name" class="font-bold text-slate-800 text-sm truncate"></div>
+            <div id="found-info" class="text-xs text-slate-500 truncate"></div>
+          </div>
+          <button onclick="clearMember()" class="text-red-500 text-xs">✕</button>
+        </div>
+      </div>
+
+      <input type="hidden" id="loan-member-id" />
+      <div class="grid grid-cols-3 gap-2 mb-3 text-xs">
+        <div><label class="text-slate-500">NIS</label><input id="loan-nis" type="text" readonly class="w-full border rounded px-2 py-1.5 bg-slate-50" /></div>
+        <div class="col-span-2"><label class="text-slate-500">Nama</label><input id="loan-name" type="text" readonly class="w-full border rounded px-2 py-1.5 bg-slate-50" /></div>
+      </div>
+      <div class="mb-3 text-xs">
+        <label class="text-slate-500">Kelas</label>
+        <input id="loan-class" type="text" readonly class="w-full border rounded px-2 py-1.5 bg-slate-50" />
+      </div>
+
+      <div class="bg-amber-50 border-2 border-dashed border-amber-300 rounded-lg p-3 mb-4">
+        <div class="flex items-center justify-between mb-2">
+          <label class="text-xs font-bold text-amber-700">📚 SCAN BUKU</label>
+          <button onclick="openCameraScanner('book')" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-2 py-1 rounded">📸 Kamera</button>
+        </div>
+        <div class="flex gap-2">
+          <input id="scan-book" type="text" placeholder="Scan barcode buku..." class="flex-1 border border-amber-300 rounded-lg px-3 py-2 text-sm font-mono outline-none" />
+          <button onclick="lookupBookByBarcode()" class="bg-amber-600 hover:bg-amber-700 text-white text-sm px-3 py-2 rounded-lg">🔍</button>
+        </div>
+      </div>
+
+      <label class="block text-xs text-slate-500 mb-1">Pilih Buku</label>
+      <select id="loan-book" class="w-full border rounded-lg px-3 py-2 mb-3 text-sm"></select>
+      <label class="block text-xs text-slate-500 mb-1">Tanggal Kembali</label>
+      <input id="loan-due" type="date" class="w-full border rounded-lg px-3 py-2 mb-4 text-sm" />
+      <button onclick="saveLoan()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-lg">💾 Simpan</button>
+    </div>
+
+    <div class="bg-white rounded-xl shadow p-5">
+      <h3 class="font-bold text-slate-700 mb-4">📋 Peminjaman Aktif</h3>
+      <div id="loans-list" class="space-y-2 max-h-[500px] overflow-y-auto"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== LAPORAN ==================== -->
+<section id="tab-reports" class="tab-content hidden fade-in">
+  <h2 class="text-2xl font-bold text-slate-800 mb-4">📊 Laporan Bulanan</h2>
+  <div class="bg-white rounded-xl shadow p-5 mb-5">
+    <div class="flex flex-wrap gap-3 items-end">
+      <div>
+        <label class="block text-xs text-slate-500 mb-1">Bulan</label>
+        <select id="report-month" class="border rounded-lg px-3 py-2 text-sm">
+          <option value="1">Januari</option><option value="2">Februari</option><option value="3">Maret</option>
+          <option value="4">April</option><option value="5">Mei</option><option value="6">Juni</option>
+          <option value="7">Juli</option><option value="8">Agustus</option><option value="9">September</option>
+          <option value="10">Oktober</option><option value="11">November</option><option value="12">Desember</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs text-slate-500 mb-1">Tahun</label>
+        <input id="report-year" type="number" min="2020" max="2100" class="border rounded-lg px-3 py-2 text-sm w-24" />
+      </div>
+      <button onclick="renderReports()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-5 py-2 rounded-lg">🔍 Tampilkan</button>
+      <button onclick="exportReportPDF()" class="bg-green-600 hover:bg-green-700 text-white font-semibold px-5 py-2 rounded-lg">📄 Export PDF</button>
+    </div>
+  </div>
+  <div id="report-content"></div>
+</section>
+
+<!-- ==================== PENGATURAN ==================== -->
+<section id="tab-settings" class="tab-content hidden fade-in">
+  <h2 class="text-2xl font-bold text-slate-800 mb-4">⚙️ Pengaturan</h2>
+  <div class="grid md:grid-cols-2 gap-5">
+    <div class="bg-white rounded-xl shadow p-5">
+      <h3 class="font-bold text-slate-700 mb-4 text-sm">📚 Identitas Sekolah</h3>
+      <label class="block text-xs text-slate-500 mb-1">Nama Sekolah</label>
+      <input id="set-school" type="text" class="w-full border rounded-lg px-3 py-2 mb-3 text-sm" />
+      <label class="block text-xs text-slate-500 mb-1">Kepala Perpustakaan</label>
+      <input id="set-librarian" type="text" class="w-full border rounded-lg px-3 py-2 mb-3 text-sm" />
+      <button onclick="saveSettings()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2 rounded-lg text-sm">💾 Simpan</button>
+    </div>
+    <div class="bg-white rounded-xl shadow p-5">
+      <h3 class="font-bold text-slate-700 mb-4 text-sm">💾 Backup & Restore</h3>
+      <button onclick="exportBackup()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-lg text-sm">⬇️ Download Backup</button>
+      <label class="inline-block bg-amber-600 hover:bg-amber-700 text-white font-semibold px-4 py-2 rounded-lg text-sm cursor-pointer ml-2">
+        ⬆️ Restore
+        <input id="restore-file" type="file" accept=".json" class="hidden" onchange="importBackup(event)" />
+      </label>
+    </div>
+    <div class="bg-white rounded-xl shadow p-5 md:col-span-2">
+      <h3 class="font-bold text-slate-700 mb-4 text-sm">🔗 Google Apps Script</h3>
+      <label class="block text-xs text-slate-500 mb-1">URL Web App</label>
+      <input id="set-apps-script-url" type="text" class="w-full border rounded-lg px-3 py-2 mb-3 text-sm font-mono" />
+      <button onclick="saveAppsScriptUrl()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2 rounded-lg text-sm">💾 Simpan URL</button>
+      <button onclick="testConnection()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-lg text-sm ml-2">🔗 Test Koneksi</button>
+      <div id="apps-script-status" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
+    </div>
+    <div class="bg-white rounded-xl shadow p-5 md:col-span-2">
+      <h3 class="font-bold text-red-700 mb-3 text-sm">🚨 Zona Bahaya</h3>
+      <p class="text-xs text-slate-500 mb-3">Reset semua data (buku, anggota, peminjaman).</p>
+      <button onclick="resetAllData()" class="bg-red-600 hover:bg-red-700 text-white font-semibold px-4 py-2 rounded-lg text-sm">🗑️ Reset Semua Data</button>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- ==================== MODAL BUKU ==================== -->
+<div id="book-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl p-6 fade-in max-h-[90vh] overflow-y-auto">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-lg font-bold">📖 Tambah Buku</h3>
+      <button onclick="closeModal('book-modal')" class="text-slate-400 text-2xl leading-none">×</button>
+    </div>
+    <div class="space-y-3">
+      <input id="bk-title" placeholder="Judul *" class="w-full border rounded-lg px-3 py-2 text-sm" />
+      <div class="grid grid-cols-3 gap-2">
+        <input id="bk-author" placeholder="Pengarang *" class="col-span-2 border rounded-lg px-3 py-2 text-sm" />
+        <input id="bk-year" type="number" placeholder="Tahun" class="border rounded-lg px-3 py-2 text-sm" />
+      </div>
+      <div class="grid grid-cols-3 gap-2">
+        <input id="bk-edition" placeholder="Cetakan" class="border rounded-lg px-3 py-2 text-sm" />
+        <input id="bk-publisher" placeholder="Penerbit" class="col-span-2 border rounded-lg px-3 py-2 text-sm" />
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <select id="bk-fund" class="border rounded-lg px-3 py-2 text-sm">
+          <option value="">-- Asal Dana --</option>
+          <option>BOS</option><option>BOSDA</option><option>APBD</option><option>Hibah</option>
+          <option>Sumbangan</option><option>Beli Sendiri</option><option>Dana Komite</option><option>Lainnya</option>
+        </select>
+        <input id="bk-callnumber" placeholder="Nomor Panggil" class="border rounded-lg px-3 py-2 text-sm" />
+      </div>
+      <input id="bk-collation" placeholder="Kolasi (xii, 529 hlm.; 21 cm)" class="w-full border rounded-lg px-3 py-2 text-sm" />
+      <div class="grid grid-cols-3 gap-2">
+        <input id="bk-isbn" placeholder="ISBN" class="border rounded-lg px-3 py-2 text-sm" />
+        <select id="bk-language" class="border rounded-lg px-3 py-2 text-sm">
+          <option>Indonesia</option><option>Inggris</option><option>Arab</option><option>Jawa</option>
+          <option>Sunda</option><option>Mandarin</option><option>Jepang</option><option>Lainnya</option>
+        </select>
+        <input id="bk-stock" type="number" min="1" value="1" placeholder="Kuantitas *" class="border rounded-lg px-3 py-2 text-sm" />
+      </div>
+    </div>
+    <div class="flex justify-end gap-2 mt-5 pt-4 border-t">
+      <button onclick="closeModal('book-modal')" class="px-4 py-2 rounded-lg text-slate-600 hover:bg-slate-100">Batal</button>
+      <button onclick="saveBook()" class="px-5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold">💾 Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MODAL ANGGOTA ==================== -->
+<div id="member-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6 fade-in max-h-[90vh] overflow-y-auto">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-lg font-bold">Tambah Anggota</h3>
+      <button onclick="closeModal('member-modal')" class="text-slate-400 text-2xl leading-none">×</button>
+    </div>
+    <div class="space-y-3">
+      <div class="flex items-center gap-3 mb-2">
+        <div id="photo-preview-wrap" class="w-20 h-20 rounded-full bg-slate-200 flex items-center justify-center text-3xl overflow-hidden">👤</div>
+        <div class="flex-1 space-y-1">
+          <label class="block bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded-lg cursor-pointer text-center">
+            📁 Pilih Foto
+            <input id="mb-photo-file" type="file" accept="image/*" class="hidden" onchange="handlePhoto(event)" />
+          </label>
+          <button onclick="openWebcam()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-lg">📷 Kamera</button>
+          <button onclick="clearPhoto()" class="w-full bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold px-3 py-2 rounded-lg">🗑️ Hapus</button>
+        </div>
+      </div>
+      <input id="mb-nis" placeholder="NIS *" class="w-full border rounded-lg px-3 py-2 text-sm" />
+      <input id="mb-name" placeholder="Nama Lengkap *" class="w-full border rounded-lg px-3 py-2 text-sm" />
+      <div class="grid grid-cols-2 gap-2">
+        <input id="mb-class" placeholder="Kelas *" class="border rounded-lg px-3 py-2 text-sm" />
+        <select id="mb-gender" class="border rounded-lg px-3 py-2 text-sm">
+          <option value="L">Laki-laki</option>
+          <option value="P">Perempuan</option>
+        </select>
+      </div>
+      <input id="mb-phone" placeholder="No. HP" class="w-full border rounded-lg px-3 py-2 text-sm" />
+      <input id="mb-until" type="date" class="w-full border rounded-lg px-3 py-2 text-sm" />
+    </div>
+    <div class="flex justify-end gap-2 mt-5">
+      <button onclick="closeModal('member-modal')" class="px-4 py-2 rounded-lg text-slate-600 hover:bg-slate-100">Batal</button>
+      <button onclick="saveMember()" class="px-5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MODAL IMPORT ANGGOTA ==================== -->
+<div id="member-import-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl p-6 fade-in max-h-[90vh] overflow-y-auto">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-lg font-bold">📥 Import Anggota Cepat</h3>
+      <button onclick="closeModal('member-import-modal')" class="text-slate-400 text-2xl leading-none">×</button>
+    </div>
+    <p class="text-xs text-slate-500 mb-4">Upload file Excel. Sistem deteksi kolom otomatis.</p>
+    <button onclick="downloadTemplate('anggota')" class="w-full bg-emerald-50 border border-emerald-300 hover:bg-emerald-100 text-emerald-700 font-semibold py-3 rounded-lg mb-3 text-sm">
+      ⬇️ Download Template Anggota
+    </button>
+    <div id="member-quick-drop" class="border-2 border-dashed border-slate-300 hover:border-emerald-400 rounded-xl p-8 text-center cursor-pointer transition">
+      <input id="member-quick-file" type="file" accept=".csv,.xlsx,.xls" class="hidden" />
+      <div class="text-4xl mb-2">👥</div>
+      <p class="text-slate-600 font-medium">Klik untuk pilih file Excel</p>
+    </div>
+    <div id="member-quick-info" class="hidden mt-3 p-3 bg-green-50 border border-green-200 rounded-lg flex justify-between items-center text-sm">
+      <span id="member-quick-name" class="text-green-800 truncate"></span>
+      <button onclick="resetQuickMemberUpload()" class="text-red-500 font-bold px-2">✕</button>
+    </div>
+    <button id="btn-quick-member-import" disabled onclick="quickImportMembers()"
+            class="mt-3 w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-semibold py-3 rounded-lg">
+      🚀 Import Sekarang
+    </button>
+    <div id="member-quick-result" class="hidden mt-4"></div>
+  </div>
+</div>
+
+<!-- ==================== MODAL WEBCAM ==================== -->
+<div id="webcam-modal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-[70] p-4">
+  <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden fade-in">
+    <div class="bg-indigo-700 text-white px-5 py-3 flex justify-between items-center">
+      <div class="font-bold text-sm">📷 Ambil Foto</div>
+      <button onclick="closeWebcam()" class="text-white text-2xl leading-none">×</button>
+    </div>
+    <div class="p-4">
+      <video id="webcam-video" autoplay playsinline class="w-full rounded-lg bg-black" style="min-height:280px;"></video>
+      <div class="mt-3 grid grid-cols-2 gap-2">
+        <button onclick="captureWebcam()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-lg">📸 Ambil</button>
+        <button onclick="closeWebcam()" class="bg-slate-300 hover:bg-slate-400 text-slate-700 font-bold py-2.5 rounded-lg">Batal</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MODAL CAMERA SCANNER ==================== -->
+<div id="camera-modal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-[60] p-4">
+  <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden fade-in max-h-[95vh] overflow-y-auto">
+    <div class="bg-indigo-700 text-white px-5 py-3 flex justify-between items-center sticky top-0 z-10">
+      <div>
+        <div class="font-bold text-sm" id="camera-title">Scan Barcode</div>
+        <div class="text-[10px] opacity-80" id="camera-subtitle">Arahkan ke barcode</div>
+      </div>
+      <button onclick="closeCameraScanner()" class="text-white text-2xl leading-none">×</button>
+    </div>
+    <div class="p-4">
+      <div id="qr-reader" class="rounded-lg overflow-hidden bg-slate-900" style="min-height: 260px;"></div>
+      <div class="mt-3 flex items-center justify-between text-xs text-slate-500">
+        <div class="flex items-center gap-2">
+          <span class="inline-block w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+          <span id="camera-status">Menunggu kamera...</span>
+        </div>
+        <button onclick="toggleCameraTorch()" id="btn-torch" class="hidden font-semibold">🔦 Senter</button>
+      </div>
+      <div class="mt-4 pt-4 border-t">
+        <div class="flex gap-2">
+          <input id="camera-manual-input" type="text" placeholder="Input manual..." class="flex-1 border rounded-lg px-3 py-2 text-sm font-mono" />
+          <button onclick="submitManualScan()" class="bg-slate-700 hover:bg-slate-800 text-white text-sm font-semibold px-4 py-2 rounded-lg">Kirim</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   KONFIGURASI PASSWORD — UBAH SESUAI KEINGINAN
+   ========================================================= */
+const PASSWORDS = {
+  admin: 'admin123',
+  pustakawan: 'pustakawan123',
+  siswa: 'murid123',
+};
+
+const ROLE_NAMES = {
+  admin: 'Administrator',
+  pustakawan: 'Pustakawan',
+  siswa: 'Murid',
+};
+
+let selectedRole = 'admin';
+
+/* =========================================================
+   KONFIGURASI APPS SCRIPT
+   ========================================================= */
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDENCFKpORKxRW9rs3-L9YlgjQDfrqAC1eHUdUEsTx_TT6qmdj2GkGrFsBwsW0vde3Iw/exec';
+
+/* =========================================================
+   DATABASE LAYER
+   ========================================================= */
+const DB = {
+  KEY: 'sipus_sman1pamijahan_v43',
+  SESSION_KEY: 'sipus_sman1pamijahan_session_v43',
+  data: null,
+
+  init() {
+    const raw = localStorage.getItem(this.KEY);
+    if (raw) {
+      try {
+        this.data = JSON.parse(raw);
+        this.data.books = this.data.books || [];
+        this.data.copies = this.data.copies || [];
+        this.data.loans = this.data.loans || [];
+        this.data.members = this.data.members || [];
+        this.data.settings = this.data.settings || {};
+        this.data.settings.schoolName = this.data.settings.schoolName || 'SMAN 1 PAMIJAHAN';
+        this.data.settings.librarian = this.data.settings.librarian || 'Kepala Perpustakaan SMAN 1 PAMIJAHAN';
+        this.data.settings.appsScriptUrl = this.data.settings.appsScriptUrl || APPS_SCRIPT_URL;
+        this.data.settings.autosync = this.data.settings.autosync !== undefined ? this.data.settings.autosync : true;
+        this.data.nextId = this.data.nextId || 1;
+        this.data.syncLog = this.data.syncLog || [];
+        this.data.syncCount = this.data.syncCount || 0;
+      } catch (err) {
+        console.error('DB parse error:', err);
+        this.seed();
+      }
+    } else {
+      this.seed();
+    }
+  },
+
+  seed() {
+    this.data = {
+      books: [], copies: [], loans: [], members: [],
+      settings: {
+        schoolName: 'SMAN 1 PAMIJAHAN',
+        librarian: 'Kepala Perpustakaan SMAN 1 PAMIJAHAN',
+        appsScriptUrl: APPS_SCRIPT_URL,
+        autosync: true,
+      },
+      nextId: 1,
+      syncLog: [],
+      syncCount: 0,
+    };
+
+    const seedBooks = [
+      { title: 'Laskar Pelangi', author: 'Andrea Hirata', year: 2005, edition: 'Cetakan 3', publisher: 'Bentang Pustaka', fundSource: 'BOS', callNumber: '813 HIR l', collation: 'xii, 529 hlm.; 21 cm', isbn: '9789793062792', language: 'Indonesia', total: 5 },
+      { title: 'Bumi Manusia', author: 'Pramoedya Ananta Toer', year: 1980, edition: 'Cetakan 1', publisher: 'Hasta Mitra', fundSource: 'Hibah', callNumber: '813 TOE b', collation: '535 hlm.; 21 cm', isbn: '9789799731234', language: 'Indonesia', total: 3 },
+      { title: 'Filosofi Teras', author: 'Henry Manampiring', year: 2018, edition: 'Cetakan 12', publisher: 'Kompas', fundSource: 'Dana Komite', callNumber: '158 MAN f', collation: 'xx, 320 hlm.; 20 cm', isbn: '9786024125189', language: 'Indonesia', total: 4 },
+    ];
+    seedBooks.forEach(s => {
+      const book = { id: this.nextId++, ...s, borrowed: 0, available: s.total, createdAt: Date.now() };
+      this.data.books.push(book);
+      for (let i = 0; i < s.total; i++) {
+        this.data.copies.push({ id: this.nextId++, bookId: book.id, barcode: makeBarcode(book.id), status: 'tersedia' });
+      }
+    });
+
+    const seedMembers = [
+      { nis: '2024001', name: 'Andi Saputra', className: 'XI IPA 1', gender: 'L' },
+      { nis: '2024002', name: 'Bunga Citra', className: 'XI IPA 2', gender: 'P' },
+      { nis: '2024003', name: 'Candra Wijaya', className: 'X IPS 1', gender: 'L' },
+    ];
+    const year = new Date().getFullYear();
+    const nextYear = new Date(); nextYear.setFullYear(year + 1);
+    seedMembers.forEach((m, i) => {
+      this.data.members.push({
+        id: this.nextId++,
+        code: `AGT-${year}-${String(i + 1).padStart(4, '0')}`,
+        nis: m.nis, name: m.name, className: m.className, gender: m.gender,
+        phone: '',
+        memberUntil: nextYear.toISOString().split('T')[0],
+        memberSince: new Date().toISOString().split('T')[0],
+        photo: null, status: 'aktif', createdAt: Date.now(),
+      });
+    });
+
+    this.save();
+  },
+
+  save() {
+    try { localStorage.setItem(this.KEY, JSON.stringify(this.data)); }
+    catch (err) { console.error('Save error:', err); toast('error', 'Gagal menyimpan data'); }
+  },
+
+  nextId() { return this.data.nextId++; },
+  setSession(user) { localStorage.setItem(this.SESSION_KEY, JSON.stringify(user)); },
+  getSession() { const raw = localStorage.getItem(this.SESSION_KEY); return raw ? JSON.parse(raw) : null; },
+  clearSession() { localStorage.removeItem(this.SESSION_KEY); },
+};
+
+/* =========================================================
+   UTIL
+   ========================================================= */
+const fmtDate = (d) => new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+
+function toast(icon, title) {
+  if (typeof Swal === 'undefined') { console.log(icon, title); return; }
+  Swal.fire({ toast: true, position: 'top-end', icon, title, showConfirmButton: false, timer: 2200 });
+}
+
+function esc(str) {
+  if (str === null || str === undefined) return '';
+  return String(str).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function makeBarcode(bookId) {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let rand = '';
+  for (let i = 0; i < 6; i++) rand += chars[Math.floor(Math.random() * chars.length)];
+  return `BK-${String(bookId).padStart(4, '0')}-${rand}`;
+}
+
+function generateMemberCode() {
+  const year = new Date().getFullYear();
+  const count = DB.data.members.filter(m => m.code.startsWith(`AGT-${year}`)).length + 1;
+  return `AGT-${year}-${String(count).padStart(4, '0')}`;
+}
+
+function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+
+/* =========================================================
+   SYNC LOG
+   ========================================================= */
+function addSyncLog(message, type = 'info') {
+  if (!DB.data.syncLog) DB.data.syncLog = [];
+  const time = new Date().toLocaleTimeString('id-ID');
+  DB.data.syncLog.unshift({ time, message, type });
+  DB.data.syncLog = DB.data.syncLog.slice(0, 50);
+  DB.data.syncCount = (DB.data.syncCount || 0) + 1;
+  DB.save();
+  renderSyncLog();
+  updateSyncStats();
+}
+
+function renderSyncLog() {
+  const el = document.getElementById('sync-log');
+  if (!el) return;
+  if (!DB.data.syncLog || DB.data.syncLog.length === 0) {
+    el.innerHTML = '<div class="text-slate-400">Belum ada aktivitas sync.</div>';
+    return;
+  }
+  const colorMap = { info: 'text-blue-600', success: 'text-green-600', error: 'text-red-600', warn: 'text-amber-600' };
+  el.innerHTML = DB.data.syncLog.map(log => 
+    `<div class="${colorMap[log.type] || 'text-slate-600'}">[${log.time}] ${esc(log.message)}</div>`
+  ).join('');
+}
+
+function clearSyncLog() {
+  DB.data.syncLog = [];
+  DB.save();
+  renderSyncLog();
+  toast('success', 'Log dibersihkan');
+}
+
+function updateSyncStats() {
+  const statBooks = document.getElementById('stat-sync-books');
+  const statMembers = document.getElementById('stat-sync-members');
+  const statLast = document.getElementById('stat-sync-last');
+  const statCount = document.getElementById('stat-sync-count');
+  if (statBooks) statBooks.textContent = DB.data.books.length;
+  if (statMembers) statMembers.textContent = DB.data.members.length;
+  if (statCount) statCount.textContent = DB.data.syncCount || 0;
+  if (statLast) {
+    const last = DB.data.syncLog && DB.data.syncLog[0];
+    statLast.textContent = last ? last.time : '-';
+  }
+}
+
+/* =========================================================
+   AUTH — LOGIN DENGAN PASSWORD
+   ========================================================= */
+function selectRole(role) {
+  selectedRole = role;
+  
+  document.querySelectorAll('.role-btn').forEach(btn => {
+    btn.classList.remove('bg-indigo-600', 'text-white');
+    btn.classList.add('bg-slate-100', 'hover:bg-slate-200', 'text-slate-700');
+  });
+  const activeBtn = document.getElementById(`role-${role}`);
+  if (activeBtn) {
+    activeBtn.classList.remove('bg-slate-100', 'hover:bg-slate-200', 'text-slate-700');
+    activeBtn.classList.add('bg-indigo-600', 'text-white');
+  }
+  
+  const label = document.getElementById('login-role-label');
+  if (label) label.textContent = `(${ROLE_NAMES[role]})`;
+  
+  const pwdInput = document.getElementById('login-password');
+  if (pwdInput) {
+    pwdInput.value = '';
+    pwdInput.focus();
+  }
+}
+
+function togglePasswordVisibility() {
+  const input = document.getElementById('login-password');
+  const eye = document.getElementById('toggle-eye');
+  if (input.type === 'password') {
+    input.type = 'text';
+    eye.textContent = '🙈';
+  } else {
+    input.type = 'password';
+    eye.textContent = '👁️';
+  }
+}
+
+function handleLogin() {
+  const password = document.getElementById('login-password').value;
+  
+  if (!password) {
+    return Swal.fire({
+      icon: 'warning',
+      title: 'Password Kosong',
+      text: 'Masukkan password terlebih dahulu.',
+      confirmButtonColor: '#4338ca',
+    });
+  }
+
+  const correctPassword = PASSWORDS[selectedRole];
+  
+  if (password !== correctPassword) {
+    const input = document.getElementById('login-password');
+    input.classList.add('border-red-500', 'bg-red-50', 'shake');
+    input.value = '';
+    setTimeout(() => {
+      input.classList.remove('border-red-500', 'bg-red-50', 'shake');
+    }, 1500);
+    
+    return Swal.fire({
+      icon: 'error',
+      title: 'Password Salah',
+      html: `Password untuk <b>${ROLE_NAMES[selectedRole]}</b> tidak sesuai.<br><br>
+             <small class="text-slate-500">Coba lagi atau klik "Lupa password?"</small>`,
+      confirmButtonColor: '#dc2626',
+    });
+  }
+
+  const sessionData = {
+    id: 0,
+    username: selectedRole,
+    name: ROLE_NAMES[selectedRole],
+    role: selectedRole,
+    loginTime: Date.now(),
+  };
+  
+  DB.setSession(sessionData);
+  document.getElementById('login-password').value = '';
+  showApp();
+  toast('success', `Selamat datang, ${sessionData.name}!`);
+}
+
+function showPasswordHint() {
+  Swal.fire({
+    title: '💡 Hint Password',
+    html: `
+      <div class="text-left text-sm space-y-2">
+        <p class="text-slate-600 mb-3">Untuk keperluan demo, ini passwordnya:</p>
+        <div class="bg-slate-50 rounded-lg p-3 space-y-2 font-mono text-xs">
+          <div class="flex justify-between"><span>🔑 Admin</span><code class="text-indigo-600 font-bold">admin123</code></div>
+          <div class="flex justify-between"><span>📖 Pustakawan</span><code class="text-indigo-600 font-bold">pustakawan123</code></div>
+          <div class="flex justify-between"><span>🎓 Murid</span><code class="text-indigo-600 font-bold">murid123</code></div>
+        </div>
+        <p class="text-[11px] text-slate-400 italic mt-3">⚠️ Ubah password di kode jika akan dipakai produksi</p>
+      </div>
+    `,
+    confirmButtonText: 'OK',
+    confirmButtonColor: '#4338ca',
+  });
+}
+
+function loginAs(role) {
+  const sessionData = {
+    id: 0,
+    username: role,
+    name: ROLE_NAMES[role] || role,
+    role: role,
+    loginTime: Date.now(),
+  };
+  DB.setSession(sessionData);
+  showApp();
+  toast('success', `Masuk sebagai ${sessionData.name}`);
+}
+
+function logout() {
+  Swal.fire({
+    title: 'Keluar?', icon: 'question',
+    showCancelButton: true, confirmButtonText: 'Ya', cancelButtonText: 'Batal',
+    confirmButtonColor: '#dc2626',
+  }).then(res => {
+    if (!res.isConfirmed) return;
+    DB.clearSession();
+    document.getElementById('login-screen').classList.remove('hidden');
+    document.getElementById('app-nav').classList.add('hidden');
+    document.getElementById('app-main').classList.add('hidden');
+    document.getElementById('login-password').value = '';
+    selectRole('admin');
+  });
+}
+
+function showApp() {
+  const s = DB.getSession();
+  if (!s) return;
+
+  // Cek auto-logout 8 jam
+  const loginTime = s.loginTime || Date.now();
+  const sessionAge = Date.now() - loginTime;
+  const MAX_SESSION = 8 * 60 * 60 * 1000;
+  if (sessionAge > MAX_SESSION) {
+    DB.clearSession();
+    toast('warning', 'Sesi berakhir, silakan login ulang');
+    setTimeout(() => location.reload(), 1500);
+    return;
+  }
+
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('app-nav').classList.remove('hidden');
+  document.getElementById('app-main').classList.remove('hidden');
+
+  document.getElementById('nav-username').textContent = s.name;
+  document.getElementById('nav-role').textContent = s.role.charAt(0).toUpperCase() + s.role.slice(1);
+
+  const isAdmin = s.role === 'admin';
+  const isPus = s.role === 'pustakawan';
+  const isSiswa = s.role === 'siswa';
+
+  const permissions = {
+    dashboard: true, books: true,
+    members: isAdmin || isPus, cards: isAdmin || isPus,
+    import: isAdmin || isPus, sheets: isAdmin || isPus,
+    barcode: isAdmin || isPus, loans: isAdmin || isPus,
+    reports: true, settings: isAdmin,
+  };
+
+  Object.entries(permissions).forEach(([tab, show]) => {
+    const btn = document.querySelector(`[data-tab="${tab}"]`);
+    if (btn) btn.style.display = show ? '' : 'none';
+  });
+
+  document.querySelectorAll('.add-book-btn, .add-member-btn').forEach(b => {
+    b.style.display = isSiswa ? 'none' : '';
+  });
+
+  switchTab('dashboard');
+  testConnection();
+}
+
+/* =========================================================
+   TAB NAVIGATION
+   ========================================================= */
+function switchTab(tabName) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+  const target = document.getElementById(`tab-${tabName}`);
+  if (target) target.classList.remove('hidden');
+
+  document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('bg-indigo-800', 'font-semibold'));
+  const activeBtn = document.querySelector(`[data-tab="${tabName}"]`);
+  if (activeBtn) activeBtn.classList.add('bg-indigo-800', 'font-semibold');
+
+  if (tabName === 'dashboard') renderDashboard();
+  if (tabName === 'books') renderBooks();
+  if (tabName === 'members') renderMembers();
+  if (tabName === 'cards') populateCardSelect();
+  if (tabName === 'barcode') populateBarcodeSelect();
+  if (tabName === 'loans') { populateLoanBookSelect(); renderLoans(); }
+  if (tabName === 'reports') renderReports();
+  if (tabName === 'settings') renderSettings();
+  if (tabName === 'import') resetUpload();
+  if (tabName === 'sheets') { renderSyncLog(); updateSyncStats(); }
+}
+
+document.querySelectorAll('.nav-btn').forEach(btn => {
+  btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+});
+
+/* =========================================================
+   DASHBOARD
+   ========================================================= */
+function renderDashboard() {
+  const { books, loans, members } = DB.data;
+  document.getElementById('stat-titles').textContent = books.length;
+  document.getElementById('stat-copies').textContent = books.reduce((s, b) => s + b.total, 0);
+  document.getElementById('stat-borrowed').textContent = books.reduce((s, b) => s + b.borrowed, 0);
+  document.getElementById('stat-available').textContent = books.reduce((s, b) => s + b.available, 0);
+  document.getElementById('stat-members').textContent = members.length;
+
+  const recent = [...loans].sort((a, b) => b.createdAt - a.createdAt).slice(0, 5);
+  const el = document.getElementById('recent-activity');
+  el.innerHTML = recent.length === 0 ? '<p class="text-slate-400 text-xs">Belum ada aktivitas.</p>' :
+    recent.map(l => `
+      <div class="flex justify-between py-2 border-b last:border-0 gap-2 text-xs">
+        <span class="min-w-0 truncate"><b>${esc(l.studentName)}</b> pinjam <i>${esc(l.bookTitle)}</i></span>
+        <span class="text-slate-400 whitespace-nowrap">${fmtDate(l.createdAt)}</span>
+      </div>`).join('');
+
+  const overdue = loans.filter(l => l.status === 'dipinjam' && new Date(l.dueDate) < new Date());
+  const outOfStock = books.filter(b => b.available === 0);
+  const items = [];
+  if (overdue.length) items.push(`<div class="py-1 text-red-600 text-xs">⚠️ <b>${overdue.length}</b> peminjaman terlambat</div>`);
+  if (outOfStock.length) items.push(`<div class="py-1 text-amber-600 text-xs">📕 <b>${outOfStock.length}</b> buku stok habis</div>`);
+  document.getElementById('attention-list').innerHTML = items.length ? items.join('') : '<p class="text-slate-400 text-xs">Semua aman 👍</p>';
+}
+
+/* =========================================================
+   BUKU
+   ========================================================= */
+function renderBooks(filter = '') {
+  const tbody = document.getElementById('books-tbody');
+  const empty = document.getElementById('books-empty');
+  const q = filter.toLowerCase();
+  const list = DB.data.books.filter(b =>
+    !q || b.title.toLowerCase().includes(q) || b.author.toLowerCase().includes(q) ||
+    (b.isbn || '').toLowerCase().includes(q) || (b.callNumber || '').toLowerCase().includes(q) ||
+    (b.publisher || '').toLowerCase().includes(q)
+  );
+
+  if (list.length === 0) { tbody.innerHTML = ''; empty.classList.remove('hidden'); return; }
+  empty.classList.add('hidden');
+
+  const s = DB.getSession();
+  const canEdit = s && (s.role === 'admin' || s.role === 'pustakawan');
+
+  tbody.innerHTML = list.map(b => `
+    <tr class="border-t hover:bg-slate-50">
+      <td class="p-3 font-mono text-xs text-slate-600">${esc(b.callNumber || '-')}</td>
+      <td class="p-3">
+        <div class="font-medium text-slate-800 text-sm">${esc(b.title)}</div>
+        <div class="text-xs text-slate-500">${esc(b.author)}${b.edition ? ' · ' + esc(b.edition) : ''}</div>
+      </td>
+      <td class="p-3 text-slate-500 text-xs">
+        <div>${esc(b.publisher || '-')}</div>
+        <div class="text-slate-400">${b.year || '-'}</div>
+      </td>
+      <td class="p-3 text-center"><span class="px-2 py-0.5 rounded-full text-xs bg-slate-100 text-slate-600">${esc(b.language || 'Indonesia')}</span></td>
+      <td class="p-3 text-center text-sm">${b.total}</td>
+      <td class="p-3 text-center text-amber-600 font-semibold text-sm">${b.borrowed}</td>
+      <td class="p-3 text-center">
+        <span class="px-2 py-1 rounded-full text-xs font-semibold ${b.available > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${b.available}</span>
+      </td>
+      <td class="p-3 text-center space-x-1">
+        ${canEdit ? `<button onclick="deleteBook(${b.id})" class="text-red-500 hover:text-red-700 text-xs">🗑️</button>` : '<span class="text-slate-300 text-xs">-</span>'}
+      </td>
+    </tr>`).join('');
+}
+
+document.getElementById('book-search').addEventListener('input', e => renderBooks(e.target.value));
+
+function openBookModal() {
+  ['bk-title', 'bk-author', 'bk-year', 'bk-edition', 'bk-publisher', 'bk-callnumber', 'bk-collation', 'bk-isbn'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.getElementById('bk-fund').value = '';
+  document.getElementById('bk-language').value = 'Indonesia';
+  document.getElementById('bk-stock').value = 1;
+  openModal('book-modal');
+}
+
+function saveBook() {
+  const title = document.getElementById('bk-title').value.trim();
+  const author = document.getElementById('bk-author').value.trim();
+  const stock = parseInt(document.getElementById('bk-stock').value);
+  if (!title || !author) return toast('error', 'Judul & pengarang wajib');
+  if (!stock || stock < 1) return toast('error', 'Kuantitas minimal 1');
+
+  const book = {
+    id: DB.nextId(), title, author,
+    year: parseInt(document.getElementById('bk-year').value) || null,
+    edition: document.getElementById('bk-edition').value.trim(),
+    publisher: document.getElementById('bk-publisher').value.trim(),
+    fundSource: document.getElementById('bk-fund').value,
+    callNumber: document.getElementById('bk-callnumber').value.trim(),
+    collation: document.getElementById('bk-collation').value.trim(),
+    isbn: document.getElementById('bk-isbn').value.trim(),
+    language: document.getElementById('bk-language').value,
+    total: stock, borrowed: 0, available: stock,
+    createdAt: Date.now(),
+  };
+  DB.data.books.push(book);
+  for (let i = 0; i < stock; i++) {
+    DB.data.copies.push({ id: DB.nextId(), bookId: book.id, barcode: makeBarcode(book.id), status: 'tersedia' });
+  }
+  DB.save();
+  
+  autosyncBooks([book]);
+  
+  closeModal('book-modal');
+  renderBooks();
+  toast('success', 'Buku ditambahkan & disinkronkan');
+}
+
+function deleteBook(id) {
+  Swal.fire({ title: 'Hapus buku?', icon: 'warning', showCancelButton: true, confirmButtonText: 'Ya', confirmButtonColor: '#dc2626' })
+    .then(res => {
+      if (!res.isConfirmed) return;
+      DB.data.books = DB.data.books.filter(b => b.id !== id);
+      DB.data.copies = DB.data.copies.filter(c => c.bookId !== id);
+      DB.save();
+      renderBooks();
+      toast('success', 'Buku dihapus');
+    });
+}
+
+/* =========================================================
+   ANGGOTA
+   ========================================================= */
+let tempPhoto = null;
+
+function renderMembers(filter = '') {
+  const tbody = document.getElementById('members-tbody');
+  const empty = document.getElementById('members-empty');
+  const q = filter.toLowerCase();
+  const list = DB.data.members.filter(m =>
+    !q || m.name.toLowerCase().includes(q) ||
+    m.nis.toLowerCase().includes(q) ||
+    m.code.toLowerCase().includes(q)
+  );
+
+  if (list.length === 0) { tbody.innerHTML = ''; empty.classList.remove('hidden'); return; }
+  empty.classList.add('hidden');
+
+  const s = DB.getSession();
+  const canEdit = s && (s.role === 'admin' || s.role === 'pustakawan');
+
+  tbody.innerHTML = list.map(m => {
+    const active = DB.data.loans.filter(l => l.memberId === m.id && l.status === 'dipinjam').length;
+    const expired = new Date(m.memberUntil) < new Date();
+    const photo = m.photo
+      ? `<img src="${m.photo}" class="photo-avatar" />`
+      : `<div class="photo-avatar bg-indigo-100 flex items-center justify-center text-indigo-600 text-lg font-bold">${esc(m.name.charAt(0).toUpperCase())}</div>`;
+    return `
+      <tr class="border-t hover:bg-slate-50">
+        <td class="p-3">${photo}</td>
+        <td class="p-3 font-mono text-xs font-semibold text-indigo-600">${esc(m.code)}</td>
+        <td class="p-3 text-sm">${esc(m.nis)}</td>
+        <td class="p-3 font-medium text-sm">${esc(m.name)}</td>
+        <td class="p-3 text-slate-500 text-sm">${esc(m.className)}</td>
+        <td class="p-3"><span class="px-2 py-1 rounded-full text-xs font-semibold ${expired ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}">${expired ? 'Kadaluarsa' : 'Aktif'}</span></td>
+        <td class="p-3 text-center"><span class="px-2 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">${active}</span></td>
+        <td class="p-3 text-center space-x-1">
+          ${canEdit ? `
+            <button onclick="quickPrintCard(${m.id})" class="text-indigo-600 text-xs">🎫</button>
+            <button onclick="deleteMember(${m.id})" class="text-red-500 text-xs">🗑️</button>
+          ` : '<span class="text-slate-300 text-xs">-</span>'}
+        </td>
+      </tr>`;
+  }).join('');
+}
+
+document.getElementById('member-search').addEventListener('input', e => renderMembers(e.target.value));
+
+function openMemberModal() {
+  tempPhoto = null;
+  document.getElementById('photo-preview-wrap').innerHTML = '👤';
+  const nextYear = new Date();
+  nextYear.setFullYear(nextYear.getFullYear() + 1);
+  document.getElementById('mb-until').value = nextYear.toISOString().split('T')[0];
+  ['mb-nis', 'mb-name', 'mb-class', 'mb-phone'].forEach(id => document.getElementById(id).value = '');
+  openModal('member-modal');
+}
+
+function handlePhoto(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const maxSize = 200;
+      let w = img.width, h = img.height;
+      if (w > h) { h = (h / w) * maxSize; w = maxSize; }
+      else { w = (w / h) * maxSize; h = maxSize; }
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      tempPhoto = canvas.toDataURL('image/jpeg', 0.8);
+      document.getElementById('photo-preview-wrap').innerHTML = `<img src="${tempPhoto}" class="w-full h-full object-cover" />`;
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearPhoto() {
+  tempPhoto = null;
+  document.getElementById('photo-preview-wrap').innerHTML = '👤';
+  document.getElementById('mb-photo-file').value = '';
+}
+
+function saveMember() {
+  const nis = document.getElementById('mb-nis').value.trim();
+  const name = document.getElementById('mb-name').value.trim();
+  const className = document.getElementById('mb-class').value.trim();
+  const gender = document.getElementById('mb-gender').value;
+  const phone = document.getElementById('mb-phone').value.trim();
+  const memberUntil = document.getElementById('mb-until').value;
+
+  if (!nis || !name || !className || !memberUntil) return toast('error', 'Lengkapi field bertanda *');
+  if (DB.data.members.some(m => m.nis === nis)) return toast('error', 'NIS sudah terdaftar');
+
+  const member = {
+    id: DB.nextId(), code: generateMemberCode(),
+    nis, name, className, gender, phone, memberUntil,
+    photo: tempPhoto,
+    memberSince: new Date().toISOString().split('T')[0],
+    status: 'aktif', createdAt: Date.now(),
+  };
+  DB.data.members.push(member);
+  DB.save();
+  
+  autosyncMembers([member]);
+  
+  closeModal('member-modal');
+  renderMembers();
+  toast('success', 'Anggota ditambahkan & disinkronkan');
+}
+
+function deleteMember(id) {
+  const active = DB.data.loans.filter(l => l.memberId === id && l.status === 'dipinjam').length;
+  if (active > 0) return Swal.fire('Tidak bisa dihapus', 'Anggota punya peminjaman aktif.', 'warning');
+  Swal.fire({ title: 'Hapus anggota?', icon: 'warning', showCancelButton: true, confirmButtonText: 'Ya', confirmButtonColor: '#dc2626' })
+    .then(res => {
+      if (!res.isConfirmed) return;
+      DB.data.members = DB.data.members.filter(m => m.id !== id);
+      DB.save();
+      renderMembers();
+      toast('success', 'Anggota dihapus');
+    });
+}
+
+/* =========================================================
+   WEBCAM
+   ========================================================= */
+let webcamStream = null;
+
+async function openWebcam() {
+  openModal('webcam-modal');
+  try {
+    webcamStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 640, height: 480 } });
+    document.getElementById('webcam-video').srcObject = webcamStream;
+  } catch (err) {
+    Swal.fire('Kamera gagal', 'Gunakan upload foto.', 'warning');
+    closeWebcam();
+  }
+}
+
+function captureWebcam() {
+  const video = document.getElementById('webcam-video');
+  const canvas = document.createElement('canvas');
+  canvas.width = 200; canvas.height = 200;
+  const ctx = canvas.getContext('2d');
+  const size = Math.min(video.videoWidth, video.videoHeight);
+  ctx.drawImage(video, (video.videoWidth - size) / 2, (video.videoHeight - size) / 2, size, size, 0, 0, 200, 200);
+  tempPhoto = canvas.toDataURL('image/jpeg', 0.8);
+  document.getElementById('photo-preview-wrap').innerHTML = `<img src="${tempPhoto}" class="w-full h-full object-cover" />`;
+  closeWebcam();
+  toast('success', 'Foto diambil');
+}
+
+function closeWebcam() {
+  if (webcamStream) { webcamStream.getTracks().forEach(t => t.stop()); webcamStream = null; }
+  closeModal('webcam-modal');
+}
+
+/* =========================================================
+   APPS SCRIPT INTEGRATION
+   ========================================================= */
+function getAppsScriptUrl() {
+  return DB.data.settings.appsScriptUrl || APPS_SCRIPT_URL;
+}
+
+function isConnected() {
+  return !!getAppsScriptUrl();
+}
+
+async function testConnection() {
+  const titleEl = document.getElementById('connection-title');
+  const subtitleEl = document.getElementById('connection-subtitle');
+  const iconEl = document.getElementById('connection-icon');
+
+  if (titleEl) titleEl.textContent = 'Memeriksa koneksi...';
+  if (subtitleEl) subtitleEl.textContent = 'Menghubungi Apps Script';
+  if (iconEl) iconEl.textContent = '🔄';
+
+  try {
+    const response = await fetch(getAppsScriptUrl() + '?action=ping', { redirect: 'follow' });
+    const data = await response.json();
+
+    if (data.ok) {
+      if (titleEl) {
+        titleEl.textContent = '✅ Terhubung ke Google Sheets';
+        titleEl.className = 'font-bold text-green-700';
+      }
+      if (subtitleEl) subtitleEl.textContent = data.message || 'Apps Script aktif';
+      if (iconEl) iconEl.textContent = '✅';
+      
+      const indicator = document.getElementById('sync-indicator');
+      if (indicator) indicator.className = 'text-xs bg-green-500 px-2 py-0.5 rounded-full flex items-center gap-1 ml-1';
+      
+      updateSyncStats();
+      return true;
+    } else {
+      throw new Error(data.message || 'Response tidak valid');
+    }
+  } catch (err) {
+    console.error('Test connection error:', err);
+    if (titleEl) {
+      titleEl.textContent = '❌ Gagal terhubung';
+      titleEl.className = 'font-bold text-red-700';
+    }
+    if (subtitleEl) subtitleEl.textContent = err.message || 'Cek URL Apps Script';
+    if (iconEl) iconEl.textContent = '❌';
+    
+    const indicator = document.getElementById('sync-indicator');
+    if (indicator) indicator.className = 'text-xs bg-red-500 px-2 py-0.5 rounded-full flex items-center gap-1 ml-1';
+    
+    return false;
+  }
+}
+
+async function pushBooksToSheets(books) {
+  if (!isConnected() || !books || books.length === 0) return false;
+
+  const payload = {
+    action: 'addBooks',
+    data: books.map(b => ({
+      judul: b.title,
+      pengarang: b.author,
+      tahun_terbit: b.year || '',
+      cetakan: b.edition || '',
+      penerbit: b.publisher || '',
+      asal_dana: b.fundSource || '',
+      nomor_panggil: b.callNumber || '',
+      kolasi: b.collation || '',
+      isbn: b.isbn || '',
+      kuantitas: b.total || 0,
+      bahasa: b.language || 'Indonesia',
+    })),
+  };
+
+  try {
+    await fetch(getAppsScriptUrl(), {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(payload),
+    });
+    addSyncLog(`⬆️ Push ${books.length} buku ke Sheets`, 'success');
+    return true;
+  } catch (err) {
+    console.error('Push books error:', err);
+    addSyncLog(`❌ Gagal push buku: ${err.message}`, 'error');
+    return false;
+  }
+}
+
+async function pushMembersToSheets(members) {
+  if (!isConnected() || !members || members.length === 0) return false;
+
+  const payload = {
+    action: 'addMembers',
+    data: members.map(m => ({
+      nis: m.nis,
+      nama: m.name,
+      kelas: m.className,
+      jenis_kelamin: m.gender || 'L',
+      no_hp: m.phone || '',
+      berlaku_sampai: m.memberUntil || '',
+      kode: m.code || '',
+      foto_url: m.photo ? 'ada' : '',
+    })),
+  };
+
+  try {
+    await fetch(getAppsScriptUrl(), {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(payload),
+    });
+    addSyncLog(`⬆️ Push ${members.length} anggota ke Sheets`, 'success');
+    return true;
+  } catch (err) {
+    console.error('Push members error:', err);
+    addSyncLog(`❌ Gagal push anggota: ${err.message}`, 'error');
+    return false;
+  }
+}
+
+async function autosyncBooks(books) {
+  if (!DB.data.settings.autosync) return;
+  if (!isConnected()) return;
+  try {
+    await pushBooksToSheets(books);
+    updateSyncStats();
+  } catch (err) {
+    console.warn('Autosync buku gagal:', err);
+  }
+}
+
+async function autosyncMembers(members) {
+  if (!DB.data.settings.autosync) return;
+  if (!isConnected()) return;
+  try {
+    await pushMembersToSheets(members);
+    updateSyncStats();
+  } catch (err) {
+    console.warn('Autosync anggota gagal:', err);
+  }
+}
+
+async function syncAllToSheets() {
+  if (!isConnected()) return toast('error', 'Tidak ada koneksi ke Sheets');
+
+  const confirm = await Swal.fire({
+    title: 'Push semua ke Sheets?',
+    html: `<div class="text-sm">
+      <div>📚 <b>${DB.data.books.length}</b> buku</div>
+      <div>👥 <b>${DB.data.members.length}</b> anggota</div>
+      <div class="mt-2 text-amber-600 text-xs">Data lama di Sheets akan diganti</div>
+    </div>`,
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonText: 'Ya, push',
+    cancelButtonText: 'Batal',
+    confirmButtonColor: '#16a34a',
+  });
+  if (!confirm.isConfirmed) return;
+
+  const btn = document.getElementById('btn-sync-all');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Syncing...'; }
+
+  addSyncLog(`🔄 Mulai push semua data...`, 'info');
+
+  try {
+    const booksPayload = {
+      action: 'replaceBooks',
+      data: DB.data.books.map(b => ({
+        judul: b.title, pengarang: b.author,
+        tahun_terbit: b.year || '', cetakan: b.edition || '',
+        penerbit: b.publisher || '', asal_dana: b.fundSource || '',
+        nomor_panggil: b.callNumber || '', kolasi: b.collation || '',
+        isbn: b.isbn || '', kuantitas: b.total || 0,
+        bahasa: b.language || 'Indonesia',
+      })),
+    };
+
+    await fetch(getAppsScriptUrl(), {
+      method: 'POST', mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(booksPayload),
+    });
+
+    const membersPayload = {
+      action: 'replaceMembers',
+      data: DB.data.members.map(m => ({
+        nis: m.nis, nama: m.name, kelas: m.className,
+        jenis_kelamin: m.gender || 'L', no_hp: m.phone || '',
+        berlaku_sampai: m.memberUntil || '', kode: m.code || '',
+        foto_url: m.photo ? 'ada' : '',
+      })),
+    };
+
+    await fetch(getAppsScriptUrl(), {
+      method: 'POST', mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(membersPayload),
+    });
+
+    addSyncLog(`✅ Selesai push semua data`, 'success');
+    toast('success', 'Sync berhasil! Cek Google Sheets');
+  } catch (err) {
+    console.error(err);
+    addSyncLog(`❌ Sync gagal: ${err.message}`, 'error');
+    toast('error', 'Sync gagal');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '⬆️ Push Semua ke Sheets'; }
+    updateSyncStats();
+  }
+}
+
+async function pullFromSheets() {
+  if (!isConnected()) return toast('error', 'Tidak ada koneksi');
+
+  const btn = document.getElementById('btn-pull-sheets');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Loading...'; }
+
+  addSyncLog(`🔄 Mulai pull data dari Sheets...`, 'info');
+
+  Swal.fire({
+    title: 'Menarik data...', html: 'Mengambil dari Google Sheets',
+    allowOutsideClick: false, didOpen: () => Swal.showLoading(),
+  });
+
+  try {
+    const response = await fetch(getAppsScriptUrl() + '?action=getAll', { redirect: 'follow' });
+    const data = await response.json();
+
+    if (!data.ok) throw new Error(data.message || 'Gagal');
+
+    const books = data.books || [];
+    const members = data.members || [];
+
+    Swal.close();
+    addSyncLog(`📥 Dapat ${books.length} buku & ${members.length} anggota dari Sheets`, 'success');
+
+    const confirm = await Swal.fire({
+      title: 'Import dari Sheets?',
+      html: `<div class="text-sm">
+        <div>📚 <b>${books.length}</b> buku</div>
+        <div>👥 <b>${members.length}</b> anggota</div>
+        <div class="mt-2 text-xs text-slate-500">Data baru akan ditambahkan</div>
+      </div>`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Ya, import',
+      cancelButtonText: 'Batal',
+      confirmButtonColor: '#16a34a',
+    });
+    if (!confirm.isConfirmed) return;
+
+    let bookAdded = 0;
+    books.forEach(b => {
+      const title = String(b.judul || b.title || '').trim();
+      if (!title) return;
+      const author = String(b.pengarang || b.author || '').trim();
+      if (!author) return;
+      
+      const stock = parseInt(b.kuantitas || b.stock) || 1;
+      const book = {
+        id: DB.nextId(),
+        title, author,
+        year: parseInt(b.tahun_terbit) || null,
+        edition: String(b.cetakan || '').trim(),
+        publisher: String(b.penerbit || '').trim(),
+        fundSource: String(b.asal_dana || '').trim(),
+        callNumber: String(b.nomor_panggil || '').trim(),
+        collation: String(b.kolasi || '').trim(),
+        isbn: String(b.isbn || '').trim(),
+        language: String(b.bahasa || 'Indonesia').trim(),
+        total: stock, borrowed: 0, available: stock,
+        createdAt: Date.now(),
+      };
+      DB.data.books.push(book);
+      for (let i = 0; i < stock; i++) {
+        DB.data.copies.push({ id: DB.nextId(), bookId: book.id, barcode: makeBarcode(book.id), status: 'tersedia' });
+      }
+      bookAdded++;
+    });
+
+    let memberAdded = 0;
+    const existingNIS = new Set(DB.data.members.map(m => String(m.nis)));
+    members.forEach(m => {
+      const nis = String(m.nis || '').trim();
+      if (!nis || existingNIS.has(nis)) return;
+      DB.data.members.push({
+        id: DB.nextId(),
+        code: m.kode || generateMemberCode(),
+        nis,
+        name: String(m.nama || m.name || '').trim(),
+        className: String(m.kelas || m.class || '').trim(),
+        gender: String(m.jenis_kelamin || 'L').toUpperCase() === 'P' ? 'P' : 'L',
+        phone: String(m.no_hp || '').trim(),
+        memberUntil: String(m.berlaku_sampai || '').slice(0, 10) || new Date(Date.now() + 365 * 86400000).toISOString().split('T')[0],
+        photo: null,
+        memberSince: new Date().toISOString().split('T')[0],
+        status: 'aktif',
+        createdAt: Date.now(),
+      });
+      existingNIS.add(nis);
+      memberAdded++;
+    });
+
+    DB.save();
+    addSyncLog(`✅ Import: ${bookAdded} buku & ${memberAdded} anggota`, 'success');
+
+    await Swal.fire({
+      icon: 'success',
+      title: 'Import Selesai!',
+      html: `<div class="text-sm text-left">
+        <div>✅ <b>${bookAdded}</b> buku baru</div>
+        <div>✅ <b>${memberAdded}</b> anggota baru</div>
+      </div>`,
+      confirmButtonColor: '#16a34a',
+    });
+
+    renderDashboard();
+    updateSyncStats();
+  } catch (err) {
+    Swal.close();
+    console.error(err);
+    addSyncLog(`❌ Pull gagal: ${err.message}`, 'error');
+    Swal.fire('Error', err.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '⬇️ Tarik dari Sheets'; }
+  }
+}
+
+function viewSheetsInfo() {
+  Swal.fire({
+    title: 'Info Google Sheets',
+    html: `<div class="text-left text-sm space-y-2">
+      <div><b>Total Buku:</b> ${DB.data.books.length}</div>
+      <div><b>Total Anggota:</b> ${DB.data.members.length}</div>
+      <div><b>Total Peminjaman:</b> ${DB.data.loans.length}</div>
+      <div class="pt-2 border-t"><b>Sync Count:</b> ${DB.data.syncCount || 0}x</div>
+      <div><b>Auto-sync:</b> ${DB.data.settings.autosync ? '✅ Aktif' : '❌ Nonaktif'}</div>
+    </div>`,
+    confirmButtonText: 'OK',
+    confirmButtonColor: '#4338ca',
+  });
+}
+
+function openSheetsUrl() {
+  Swal.fire({
+    title: 'Buka Google Sheets',
+    html: `<div class="text-sm text-left">
+      <p class="mb-2">Buka Google Sheets untuk melihat data secara langsung.</p>
+      <p class="text-xs text-slate-500">Gunakan URL yang sama untuk buka di browser.</p>
+    </div>`,
+    confirmButtonText: 'OK',
+    confirmButtonColor: '#16a34a',
+  });
+}
+
+/* =========================================================
+   IMPORT EXCEL
+   ========================================================= */
+let importState = { file: null, parsedRows: [], bookRows: [], memberRows: [], bookErrors: [], memberErrors: [], unknownCount: 0 };
+
+const BOOK_COLUMN_MAP = {
+  title: ['judul', 'title', 'judul_buku', 'nama_buku'],
+  author: ['pengarang', 'author', 'penulis', 'nama_pengarang'],
+  year: ['tahun', 'tahun_terbit', 'year', 'thn'],
+  edition: ['cetakan', 'edisi', 'edition', 'versi'],
+  publisher: ['penerbit', 'publisher', 'nama_penerbit'],
+  fundSource: ['asal_dana', 'asal', 'fund', 'sumber', 'sumber_dana'],
+  callNumber: ['nomor_panggil', 'no_panggil', 'call_number', 'callnumber', 'nomorpanggil'],
+  collation: ['kolasi', 'collation', 'deskripsi_fisik', 'deskripsi'],
+  isbn: ['isbn', 'no_isbn', 'nomor_isbn'],
+  stock: ['kuantitas', 'jumlah', 'quantity', 'stock', 'jml', 'qty'],
+  language: ['bahasa', 'language', 'lang'],
+};
+
+const MEMBER_COLUMN_MAP = {
+  nis: ['nis', 'no_induk', 'nomor_induk', 'id_siswa', 'nisn'],
+  name: ['nama', 'name', 'nama_lengkap', 'full_name', 'fullname', 'nama_siswa'],
+  className: ['kelas', 'class', 'class_name', 'rombel', 'tingkat'],
+  gender: ['jenis_kelamin', 'gender', 'jk', 'sex', 'kelamin'],
+  phone: ['no_hp', 'phone', 'telepon', 'hp', 'wa', 'whatsapp', 'nohp'],
+  memberUntil: ['berlaku_sampai', 'member_until', 'until', 'masa_berlaku', 'expired', 'kadaluarsa', 'sampai'],
+};
+
+function normalizeHeader(h) {
+  return String(h).toLowerCase().trim().replace(/\s+/g, '_').replace(/[^\w]/g, '');
+}
+
+function findValue(row, aliases) {
+  for (const alias of aliases) {
+    const key = normalizeHeader(alias);
+    if (row[key] !== undefined && row[key] !== '') return row[key];
+  }
+  for (const key of Object.keys(row)) {
+    for (const alias of aliases) {
+      if (key.includes(normalizeHeader(alias))) {
+        if (row[key] !== undefined && row[key] !== '') return row[key];
+      }
+    }
+  }
+  return undefined;
+}
+
+function detectRowType(row) {
+  const hasBook = findValue(row, BOOK_COLUMN_MAP.title) !== undefined || findValue(row, BOOK_COLUMN_MAP.author) !== undefined;
+  const hasMember = findValue(row, MEMBER_COLUMN_MAP.nis) !== undefined || findValue(row, MEMBER_COLUMN_MAP.name) !== undefined;
+  if (hasBook && !hasMember) return 'book';
+  if (hasMember && !hasBook) return 'member';
+  if (hasBook && hasMember) {
+    if (findValue(row, BOOK_COLUMN_MAP.author) || findValue(row, BOOK_COLUMN_MAP.stock)) return 'book';
+    return 'member';
+  }
+  return 'unknown';
+}
+
+async function parseFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    const ext = file.name.split('.').pop().toLowerCase();
+    reader.onload = (e) => {
+      try {
+        if (ext === 'csv') {
+          Papa.parse(e.target.result, {
+            header: true, skipEmptyLines: 'greedy',
+            transformHeader: h => normalizeHeader(h),
+            complete: r => resolve(r.data), error: reject,
+          });
+        } else {
+          const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+          const allRows = [];
+          wb.SheetNames.forEach(sheetName => {
+            const lower = sheetName.toLowerCase();
+            if (lower.includes('petunjuk') || lower.includes('help') || lower.includes('readme') || lower.includes('panduan')) return;
+            const sheet = wb.Sheets[sheetName];
+            const raw = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: false });
+            raw.forEach(row => {
+              const normalized = {};
+              Object.keys(row).forEach(k => { normalized[normalizeHeader(k)] = row[k]; });
+              allRows.push(normalized);
+            });
+          });
+          resolve(allRows);
+        }
+      } catch (err) { reject(err); }
+    };
+    reader.onerror = reject;
+    ext === 'csv' ? reader.readAsText(file) : reader.readAsArrayBuffer(file);
+  });
+}
+
+function validateBookRow(row, rowNum) {
+  const title = String(findValue(row, BOOK_COLUMN_MAP.title) || '').trim();
+  const author = String(findValue(row, BOOK_COLUMN_MAP.author) || '').trim();
+  const stockRaw = findValue(row, BOOK_COLUMN_MAP.stock);
+  const stock = parseInt(stockRaw);
+  if (!title) return { error: `Baris ${rowNum}: Judul kosong` };
+  if (!author) return { error: `Baris ${rowNum}: Pengarang kosong` };
+  if (isNaN(stock) || stock < 1) return { error: `Baris ${rowNum}: Kuantitas tidak valid ("${stockRaw}")` };
+  return {
+    data: {
+      title, author,
+      year: parseInt(findValue(row, BOOK_COLUMN_MAP.year)) || null,
+      edition: String(findValue(row, BOOK_COLUMN_MAP.edition) || '').trim(),
+      publisher: String(findValue(row, BOOK_COLUMN_MAP.publisher) || '').trim(),
+      fundSource: String(findValue(row, BOOK_COLUMN_MAP.fundSource) || '').trim(),
+      callNumber: String(findValue(row, BOOK_COLUMN_MAP.callNumber) || '').trim(),
+      collation: String(findValue(row, BOOK_COLUMN_MAP.collation) || '').trim(),
+      isbn: String(findValue(row, BOOK_COLUMN_MAP.isbn) || '').trim(),
+      language: String(findValue(row, BOOK_COLUMN_MAP.language) || 'Indonesia').trim() || 'Indonesia',
+      stock,
+    },
+  };
+}
+
+function validateMemberRow(row, rowNum) {
+  const nis = String(findValue(row, MEMBER_COLUMN_MAP.nis) || '').trim();
+  const name = String(findValue(row, MEMBER_COLUMN_MAP.name) || '').trim();
+  const className = String(findValue(row, MEMBER_COLUMN_MAP.className) || '').trim();
+  const genderRaw = String(findValue(row, MEMBER_COLUMN_MAP.gender) || 'L').trim().toUpperCase();
+  const phone = String(findValue(row, MEMBER_COLUMN_MAP.phone) || '').trim();
+  const untilRaw = findValue(row, MEMBER_COLUMN_MAP.memberUntil);
+  if (!nis) return { error: `Baris ${rowNum}: NIS kosong` };
+  if (!name) return { error: `Baris ${rowNum}: Nama kosong` };
+  if (!className) return { error: `Baris ${rowNum}: Kelas kosong` };
+  let gender = 'L';
+  if (['P', 'PEREMPUAN', 'FEMALE', 'F', 'WANITA'].includes(genderRaw)) gender = 'P';
+  const nextYear = new Date();
+  nextYear.setFullYear(nextYear.getFullYear() + 1);
+  let memberUntil = nextYear.toISOString().split('T')[0];
+  if (untilRaw) {
+    const s = String(untilRaw).trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) memberUntil = s.substring(0, 10);
+    else {
+      const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+      if (m) memberUntil = `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+    }
+  }
+  return { data: { nis, name, className, gender, phone, memberUntil } };
+}
+
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('border-indigo-500', 'bg-indigo-50'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('border-indigo-500', 'bg-indigo-50'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('border-indigo-500', 'bg-indigo-50');
+  if (e.dataTransfer.files.length) handleFileSelect(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', e => { if (e.target.files.length) handleFileSelect(e.target.files[0]); });
+
+async function handleFileSelect(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (!['csv', 'xlsx', 'xls'].includes(ext)) return toast('error', 'Format harus .xlsx, .xls, atau .csv');
+  if (file.size > 10 * 1024 * 1024) return toast('error', 'File terlalu besar');
+
+  importState.file = file;
+  document.getElementById('file-name').textContent = file.name;
+  document.getElementById('file-size').textContent = `${(file.size / 1024).toFixed(1)} KB`;
+  document.getElementById('file-info').classList.remove('hidden');
+
+  Swal.fire({ title: 'Membaca file...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+  try {
+    const rows = await parseFile(file);
+    if (rows.length === 0) { Swal.close(); return Swal.fire('File kosong', 'Tidak ada data', 'warning'); }
+
+    const bookRows = [], memberRows = [], bookErrors = [], memberErrors = [];
+    let unknownCount = 0;
+
+    rows.forEach((row, idx) => {
+      const rowNum = idx + 2;
+      const type = detectRowType(row);
+      if (type === 'book') {
+        const r = validateBookRow(row, rowNum);
+        if (r.error) bookErrors.push(r.error);
+        else bookRows.push(r.data);
+      } else if (type === 'member') {
+        const r = validateMemberRow(row, rowNum);
+        if (r.error) memberErrors.push(r.error);
+        else memberRows.push(r.data);
+      } else unknownCount++;
+    });
+
+    importState = { file, parsedRows: rows, bookRows, memberRows, bookErrors, memberErrors, unknownCount };
+    Swal.close();
+    renderPreview();
+  } catch (err) {
+    Swal.close();
+    console.error(err);
+    Swal.fire('Gagal membaca file', err.message, 'error');
+    resetUpload();
+  }
+}
+
+function renderPreview() {
+  const panel = document.getElementById('preview-panel');
+  panel.classList.remove('hidden');
+
+  const b = importState.bookRows.length, m = importState.memberRows.length;
+  const bErr = importState.bookErrors.length, mErr = importState.memberErrors.length;
+  const unk = importState.unknownCount || 0;
+
+  document.getElementById('preview-summary').innerHTML = `
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div class="bg-blue-50 rounded-lg p-3 text-center"><div class="text-2xl font-bold text-blue-600">${b}</div><div class="text-xs text-slate-600">Buku Siap</div></div>
+      <div class="bg-emerald-50 rounded-lg p-3 text-center"><div class="text-2xl font-bold text-emerald-600">${m}</div><div class="text-xs text-slate-600">Anggota Siap</div></div>
+      <div class="bg-red-50 rounded-lg p-3 text-center"><div class="text-2xl font-bold text-red-600">${bErr + mErr}</div><div class="text-xs text-slate-600">Error</div></div>
+      <div class="bg-slate-100 rounded-lg p-3 text-center"><div class="text-2xl font-bold text-slate-600">${unk}</div><div class="text-xs text-slate-600">Diabaikan</div></div>
+    </div>`;
+
+  let html = '';
+  if (b > 0) {
+    html += `<div class="bg-blue-100 px-3 py-2 text-xs font-bold text-blue-800 sticky top-0">📚 BUKU (${b} baris)</div>`;
+    html += '<table class="w-full text-xs"><thead class="bg-slate-50"><tr><th class="p-2 text-left">Judul</th><th class="p-2 text-left">Pengarang</th><th class="p-2 text-center">Qty</th></tr></thead><tbody>';
+    importState.bookRows.slice(0, 20).forEach(r => {
+      html += `<tr class="border-t import-preview-row"><td class="p-2">${esc(r.title)}</td><td class="p-2 text-slate-600">${esc(r.author)}</td><td class="p-2 text-center font-semibold">${r.stock}</td></tr>`;
+    });
+    html += '</tbody></table>';
+    if (b > 20) html += `<div class="p-2 text-xs text-slate-500 text-center bg-slate-50">... dan ${b - 20} baris lagi</div>`;
+  }
+  if (m > 0) {
+    html += `<div class="bg-emerald-100 px-3 py-2 text-xs font-bold text-emerald-800 sticky top-0">👥 ANGGOTA (${m} baris)</div>`;
+    html += '<table class="w-full text-xs"><thead class="bg-slate-50"><tr><th class="p-2 text-left">NIS</th><th class="p-2 text-left">Nama</th><th class="p-2 text-left">Kelas</th></tr></thead><tbody>';
+    importState.memberRows.slice(0, 20).forEach(r => {
+      html += `<tr class="border-t import-preview-row"><td class="p-2 font-mono">${esc(r.nis)}</td><td class="p-2">${esc(r.name)}</td><td class="p-2 text-slate-600">${esc(r.className)}</td></tr>`;
+    });
+    html += '</tbody></table>';
+    if (m > 20) html += `<div class="p-2 text-xs text-slate-500 text-center bg-slate-50">... dan ${m - 20} baris lagi</div>`;
+  }
+  const allErrors = [...importState.bookErrors, ...importState.memberErrors];
+  if (allErrors.length > 0) {
+    html += `<div class="bg-red-100 px-3 py-2 text-xs font-bold text-red-800 sticky top-0">❌ ERROR (${allErrors.length})</div>`;
+    html += '<div class="p-3 bg-red-50 text-xs text-red-700 space-y-1">';
+    allErrors.slice(0, 30).forEach(err => { html += `<div>${esc(err)}</div>`; });
+    if (allErrors.length > 30) html += `<div class="italic">... dan ${allErrors.length - 30} error lain</div>`;
+    html += '</div>';
+  }
+  if (b === 0 && m === 0) {
+    html = `<div class="p-6 text-center text-slate-500"><div class="text-3xl mb-2">📭</div><p class="font-medium">Tidak ada baris valid</p></div>`;
+  }
+  document.getElementById('preview-table').innerHTML = html;
+
+  const btn = document.getElementById('btn-confirm-import');
+  if (b === 0 && m === 0) {
+    btn.disabled = true;
+    btn.classList.add('opacity-50', 'cursor-not-allowed');
+  } else {
+    btn.disabled = false;
+    btn.classList.remove('opacity-50', 'cursor-not-allowed');
+  }
+}
+
+function resetUpload() {
+  importState = { file: null, parsedRows: [], bookRows: [], memberRows: [], bookErrors: [], memberErrors: [], unknownCount: 0 };
+  fileInput.value = '';
+  document.getElementById('file-info').classList.add('hidden');
+  document.getElementById('preview-panel').classList.add('hidden');
+  document.getElementById('import-result').classList.add('hidden');
+}
+
+async function confirmImport() {
+  const b = importState.bookRows.length, m = importState.memberRows.length;
+  if (b === 0 && m === 0) return toast('error', 'Tidak ada data');
+
+  const confirm = await Swal.fire({
+    title: 'Konfirmasi Import',
+    html: `Import <b>${b} buku</b> dan <b>${m} anggota</b>?<br>
+      <small class="text-xs text-slate-500">Data akan otomatis disinkronkan ke Google Sheets</small>`,
+    icon: 'question', showCancelButton: true,
+    confirmButtonText: 'Ya, import', cancelButtonText: 'Batal',
+    confirmButtonColor: '#16a34a',
+  });
+  if (!confirm.isConfirmed) return;
+
+  Swal.fire({ title: 'Mengimport...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+  let bookSuccess = 0;
+  const newBooks = [];
+  importState.bookRows.forEach(row => {
+    try {
+      const book = {
+        id: DB.nextId(), title: row.title, author: row.author, year: row.year,
+        edition: row.edition, publisher: row.publisher, fundSource: row.fundSource,
+        callNumber: row.callNumber, collation: row.collation, isbn: row.isbn,
+        language: row.language, total: row.stock, borrowed: 0, available: row.stock,
+        createdAt: Date.now(),
+      };
+      DB.data.books.push(book);
+      newBooks.push(book);
+      for (let i = 0; i < row.stock; i++) {
+        DB.data.copies.push({ id: DB.nextId(), bookId: book.id, barcode: makeBarcode(book.id), status: 'tersedia' });
+      }
+      bookSuccess++;
+    } catch (err) { console.error(err); }
+  });
+
+  let memberSuccess = 0;
+  const newMembers = [];
+  const existingNIS = new Set(DB.data.members.map(m => String(m.nis)));
+  importState.memberRows.forEach(row => {
+    try {
+      if (existingNIS.has(row.nis)) return;
+      const member = {
+        id: DB.nextId(), code: generateMemberCode(), nis: row.nis, name: row.name,
+        className: row.className, gender: row.gender, phone: row.phone,
+        memberUntil: row.memberUntil, photo: null,
+        memberSince: new Date().toISOString().split('T')[0], status: 'aktif',
+        createdAt: Date.now(),
+      };
+      DB.data.members.push(member);
+      newMembers.push(member);
+      existingNIS.add(row.nis);
+      memberSuccess++;
+    } catch (err) { console.error(err); }
+  });
+
+  DB.save();
+  Swal.close();
+
+  if (newBooks.length > 0) autosyncBooks(newBooks);
+  if (newMembers.length > 0) autosyncMembers(newMembers);
+
+  document.getElementById('import-result').classList.remove('hidden');
+  document.getElementById('import-result').innerHTML = `
+    <div class="bg-white rounded-xl shadow p-5 border-l-4 border-green-500">
+      <h3 class="font-bold text-slate-800 mb-3 flex items-center gap-2"><span class="text-2xl">✅</span> Import Selesai!</h3>
+      <div class="grid grid-cols-2 gap-3 mb-4">
+        <div class="bg-blue-50 rounded-lg p-3 text-center"><div class="text-2xl font-bold text-blue-600">${bookSuccess}</div><div class="text-xs text-slate-600">Buku</div></div>
+        <div class="bg-emerald-50 rounded-lg p-3 text-center"><div class="text-2xl font-bold text-emerald-600">${memberSuccess}</div><div class="text-xs text-slate-600">Anggota</div></div>
+      </div>
+      <div class="bg-green-50 border border-green-200 rounded p-2 text-xs text-green-700 mb-3">
+        ☁️ Data otomatis disinkronkan ke Google Sheets
+      </div>
+      <div class="flex gap-2">
+        <button onclick="switchTab('books'); resetUpload();" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-lg text-sm">📖 Lihat Buku</button>
+        <button onclick="switchTab('members'); resetUpload();" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-lg text-sm">👥 Lihat Anggota</button>
+      </div>
+    </div>`;
+  document.getElementById('preview-panel').classList.add('hidden');
+  toast('success', `Import: ${bookSuccess} buku, ${memberSuccess} anggota`);
+  renderDashboard();
+}
+
+/* =========================================================
+   QUICK IMPORT MEMBERS
+   ========================================================= */
+const memberQuickDrop = document.getElementById('member-quick-drop');
+const memberQuickFile = document.getElementById('member-quick-file');
+let memberQuickState = { file: null };
+
+memberQuickDrop.addEventListener('click', () => memberQuickFile.click());
+memberQuickDrop.addEventListener('dragover', e => { e.preventDefault(); memberQuickDrop.classList.add('border-emerald-500', 'bg-emerald-50'); });
+memberQuickDrop.addEventListener('dragleave', () => memberQuickDrop.classList.remove('border-emerald-500', 'bg-emerald-50'));
+memberQuickDrop.addEventListener('drop', e => {
+  e.preventDefault();
+  memberQuickDrop.classList.remove('border-emerald-500', 'bg-emerald-50');
+  if (e.dataTransfer.files.length) handleQuickMemberFile(e.dataTransfer.files[0]);
+});
+memberQuickFile.addEventListener('change', e => { if (e.target.files.length) handleQuickMemberFile(e.target.files[0]); });
+
+function openMemberImportModal() { openModal('member-import-modal'); }
+
+function handleQuickMemberFile(file) {
+  memberQuickState.file = file;
+  document.getElementById('member-quick-name').textContent = file.name;
+  document.getElementById('member-quick-info').classList.remove('hidden');
+  document.getElementById('btn-quick-member-import').disabled = false;
+}
+
+function resetQuickMemberUpload() {
+  memberQuickState.file = null;
+  memberQuickFile.value = '';
+  document.getElementById('member-quick-info').classList.add('hidden');
+  document.getElementById('btn-quick-member-import').disabled = true;
+  document.getElementById('member-quick-result').classList.add('hidden');
+}
+
+async function quickImportMembers() {
+  if (!memberQuickState.file) return;
+  const btn = document.getElementById('btn-quick-member-import');
+  btn.disabled = true;
+  btn.textContent = '⏳ Memproses...';
+
+  try {
+    const rows = await parseFile(memberQuickState.file);
+    let success = 0;
+    const errors = [];
+    const newMembers = [];
+    const existingNIS = new Set(DB.data.members.map(m => String(m.nis)));
+
+    rows.forEach((row, idx) => {
+      const rowNum = idx + 2;
+      const type = detectRowType(row);
+      if (type !== 'member') return;
+      const result = validateMemberRow(row, rowNum);
+      if (result.error) { errors.push(result.error); return; }
+      if (existingNIS.has(result.data.nis)) { errors.push(`Baris ${rowNum}: NIS ${result.data.nis} sudah ada`); return; }
+
+      const member = {
+        id: DB.nextId(), code: generateMemberCode(), nis: result.data.nis, name: result.data.name,
+        className: result.data.className, gender: result.data.gender, phone: result.data.phone,
+        memberUntil: result.data.memberUntil, photo: null,
+        memberSince: new Date().toISOString().split('T')[0], status: 'aktif', createdAt: Date.now(),
+      };
+      DB.data.members.push(member);
+      newMembers.push(member);
+      existingNIS.add(result.data.nis);
+      success++;
+    });
+
+    DB.save();
+    
+    if (newMembers.length > 0) autosyncMembers(newMembers);
+    
+    renderMembers();
+    document.getElementById('member-quick-result').classList.remove('hidden');
+    document.getElementById('member-quick-result').innerHTML = `
+      <div class="bg-green-50 border border-green-200 rounded-lg p-3">
+        <div class="text-sm font-bold text-green-800 mb-1">✅ Berhasil: ${success} anggota</div>
+        <div class="text-xs text-green-600">☁️ Tersinkron ke Google Sheets</div>
+        ${errors.length ? `<div class="text-xs text-red-700 mt-1">${errors.length} gagal</div>` : ''}
+      </div>`;
+    toast('success', `${success} anggota diimport`);
+  } catch (err) {
+    Swal.fire('Error', err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🚀 Import Sekarang';
+  }
+}
+
+/* =========================================================
+   TEMPLATE EXCEL
+   ========================================================= */
+function buildStyledSheet(headers, rows, colWidths) {
+  const aoa = [headers, ...rows];
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+  headers.forEach((_, idx) => {
+    const ref = XLSX.utils.encode_cell({ r: 0, c: idx });
+    if (ws[ref]) {
+      ws[ref].s = {
+        font: { bold: true, color: { rgb: 'FFFFFF' }, sz: 11 },
+        fill: { fgColor: { rgb: '4338CA' } },
+        alignment: { horizontal: 'center', vertical: 'center' },
+        border: {
+          top: { style: 'thin', color: { rgb: '312E81' } }, bottom: { style: 'thin', color: { rgb: '312E81' } },
+          left: { style: 'thin', color: { rgb: '312E81' } }, right: { style: 'thin', color: { rgb: '312E81' } },
+        },
+      };
+    }
+  });
+
+  rows.forEach((_, r) => {
+    headers.forEach((_, c) => {
+      const ref = XLSX.utils.encode_cell({ r: r + 1, c });
+      if (ws[ref]) {
+        ws[ref].s = {
+          font: { italic: true, color: { rgb: '94A3B8' }, sz: 10 },
+          border: {
+            top: { style: 'thin', color: { rgb: 'E2E8F0' } }, bottom: { style: 'thin', color: { rgb: 'E2E8F0' } },
+            left: { style: 'thin', color: { rgb: 'E2E8F0' } }, right: { style: 'thin', color: { rgb: 'E2E8F0' } },
+          },
+        };
+      }
+    });
+  });
+
+  ws['!cols'] = colWidths.map(w => ({ wch: w }));
+  return ws;
+}
+
+function downloadTemplate(type) {
+  const wb = XLSX.utils.book_new();
+
+  if (type === 'buku' || type === 'kombinasi') {
+    const headers = ['judul', 'pengarang', 'tahun_terbit', 'cetakan', 'penerbit', 'asal_dana', 'nomor_panggil', 'kolasi', 'isbn', 'kuantitas', 'bahasa'];
+    const rows = [
+      ['Laskar Pelangi', 'Andrea Hirata', 2005, 'Cetakan 3', 'Bentang Pustaka', 'BOS', '813 HIR l', 'xii, 529 hlm.; 21 cm', '9789793062792', 5, 'Indonesia'],
+      ['Bumi Manusia', 'Pramoedya Ananta Toer', 1980, 'Cetakan 1', 'Hasta Mitra', 'Hibah', '813 TOE b', '535 hlm.; 21 cm', '9789799731234', 3, 'Indonesia'],
+    ];
+    XLSX.utils.book_append_sheet(wb, buildStyledSheet(headers, rows, [28, 24, 12, 14, 20, 14, 16, 22, 18, 10, 12]), 'BUKU');
+  }
+
+  if (type === 'anggota' || type === 'kombinasi') {
+    const headers = ['nis', 'nama', 'kelas', 'jenis_kelamin', 'no_hp', 'berlaku_sampai'];
+    const rows = [
+      ['2024001', 'Andi Saputra', 'XI IPA 1', 'L', '081234567890', '2026-07-01'],
+      ['2024002', 'Bunga Citra', 'XI IPA 2', 'P', '081234567891', '2026-07-01'],
+    ];
+    XLSX.utils.book_append_sheet(wb, buildStyledSheet(headers, rows, [14, 26, 16, 16, 18, 18]), 'ANGGOTA');
+  }
+
+  const filename = type === 'kombinasi' ? 'template-sipus-gabungan.xlsx' : type === 'anggota' ? 'template-anggota-sipus.xlsx' : 'template-buku-sipus.xlsx';
+  XLSX.writeFile(wb, filename);
+  toast('success', 'Template diunduh');
+}
+
+/* =========================================================
+   KARTU
+   ========================================================= */
+function populateCardSelect() {
+  const sel = document.getElementById('card-member-select');
+  sel.innerHTML = '<option value="">-- Pilih --</option>' +
+    DB.data.members.map(m => `<option value="${m.id}">${esc(m.name)} (${esc(m.code)})</option>`).join('');
+}
+
+function previewCard() {
+  const id = parseInt(document.getElementById('card-member-select').value);
+  if (!id) return toast('warning', 'Pilih anggota');
+  const m = DB.data.members.find(x => x.id === id);
+  if (!m) return;
+
+  const expiry = new Date(m.memberUntil).toLocaleDateString('id-ID', { month: 'short', year: 'numeric' });
+  const photoHtml = m.photo
+    ? `<img src="${m.photo}" class="card-photo" />`
+    : `<div class="card-photo bg-white/20 flex items-center justify-center text-white text-lg">👤</div>`;
+
+  const container = document.getElementById('card-preview');
+  container.innerHTML = `
+    <div class="card-design text-white rounded-xl shadow-lg p-4 relative overflow-hidden" style="width:340px;height:214px;">
+      <div class="flex items-center gap-2 mb-2">
+        <span class="text-lg">📚</span>
+        <div>
+          <div class="text-xs font-bold">KARTU PERPUSTAKAAN</div>
+          <div class="text-[9px] opacity-80">${esc(DB.data.settings.schoolName)}</div>
+        </div>
+      </div>
+      <div class="flex gap-3 items-start">
+        ${photoHtml}
+        <div class="flex-1 min-w-0">
+          <div class="font-bold text-sm truncate">${esc(m.name)}</div>
+          <div class="text-[10px] opacity-90">NIS: ${esc(m.nis)}</div>
+          <div class="text-[10px] opacity-90">Kelas: ${esc(m.className)}</div>
+          <div class="text-[10px] opacity-90">s/d: ${expiry}</div>
+        </div>
+      </div>
+      <div class="absolute bottom-2 left-4 right-4 flex justify-between items-end">
+        <div class="bg-white rounded p-1"><svg class="card-barcode"></svg></div>
+        <div class="text-[9px] text-right">
+          <div class="font-mono font-bold">${esc(m.code)}</div>
+          <div class="opacity-75">ID</div>
+        </div>
+      </div>
+    </div>`;
+
+  JsBarcode(container.querySelector('.card-barcode'), m.code, {
+    format: 'CODE128', width: 1.6, height: 38, displayValue: true, fontSize: 9, margin: 2,
+  });
+}
+
+function printSingleCard() {
+  const id = parseInt(document.getElementById('card-member-select').value);
+  if (!id) return toast('warning', 'Pilih anggota');
+  exportCardPDF([DB.data.members.find(x => x.id === id)], `kartu-${id}.pdf`);
+}
+
+function quickPrintCard(id) {
+  const m = DB.data.members.find(x => x.id === id);
+  if (m) exportCardPDF([m], `kartu-${m.nis}.pdf`);
+}
+
+function printAllCards() {
+  if (DB.data.members.length === 0) return toast('warning', 'Belum ada anggota');
+  exportCardPDF(DB.data.members, 'kartu-semua.pdf');
+}
+
+function exportCardPDF(members, filename) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: [85.6, 54], orientation: 'landscape' });
+
+  members.forEach((m, idx) => {
+    if (idx > 0) doc.addPage([85.6, 54], 'landscape');
+    doc.setFillColor(67, 56, 202);
+    doc.rect(0, 0, 85.6, 54, 'F');
+    doc.setFillColor(49, 46, 129);
+    doc.rect(0, 36, 85.6, 18, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+    doc.text('KARTU PERPUSTAKAAN', 6, 6);
+    doc.setFontSize(6); doc.setFont('helvetica', 'normal');
+    doc.text(DB.data.settings.schoolName, 6, 9.5);
+
+    if (m.photo) {
+      try { doc.addImage(m.photo, 'JPEG', 68, 12, 14, 18); } catch (e) {}
+    }
+
+    doc.setFontSize(9); doc.setFont('helvetica', 'bold');
+    doc.text(m.name, 6, 16);
+    doc.setFontSize(6.5); doc.setFont('helvetica', 'normal');
+    doc.text(`NIS: ${m.nis}`, 6, 20);
+    doc.text(`Kelas: ${m.className}`, 6, 23);
+    doc.text(`Berlaku: ${fmtDate(m.memberUntil)}`, 6, 26);
+
+    const canvas = document.createElement('canvas');
+    JsBarcode(canvas, m.code, { format: 'CODE128', width: 1.6, height: 40, displayValue: true, fontSize: 10, margin: 0 });
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(6, 38, 55, 13, 1, 1, 'F');
+    doc.addImage(canvas.toDataURL('image/png'), 'PNG', 7, 38.5, 53, 12);
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(7); doc.setFont('helvetica', 'bold');
+    doc.text(m.code, 80, 46, { align: 'right' });
+  });
+
+  doc.save(filename);
+  toast('success', `${members.length} kartu dicetak`);
+}
+
+/* =========================================================
+   BARCODE BUKU
+   ========================================================= */
+function populateBarcodeSelect() {
+  const sel = document.getElementById('barcode-book-select');
+  sel.innerHTML = '<option value="">-- Pilih Buku --</option>' +
+    DB.data.books.map(b => `<option value="${b.id}">${esc(b.title)} (${b.total} eks)</option>`).join('');
+}
+
+function generateBarcodes() {
+  const id = parseInt(document.getElementById('barcode-book-select').value);
+  const container = document.getElementById('barcode-result');
+  container.innerHTML = '';
+  if (!id) return toast('warning', 'Pilih buku');
+  const copies = DB.data.copies.filter(c => c.bookId === id);
+  const book = DB.data.books.find(b => b.id === id);
+  if (!copies.length) return toast('warning', 'Tidak ada eksemplar');
+
+  copies.forEach(c => {
+    const card = document.createElement('div');
+    card.className = 'border rounded-lg p-3 bg-white text-center';
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    card.appendChild(svg);
+    card.insertAdjacentHTML('beforeend', `<div class="mt-2 text-xs text-slate-600"><div class="font-semibold truncate">${esc(book.title)}</div><div class="text-slate-400">${esc(book.author)}</div></div>`);
+    container.appendChild(card);
+    JsBarcode(svg, c.barcode, { format: 'CODE128', width: 2, height: 50, displayValue: true, fontSize: 12, margin: 5 });
+  });
+
+  document.getElementById('btn-print-barcode').disabled = false;
+  window._currentBookId = id;
+}
+
+function printBarcodes() {
+  const id = window._currentBookId;
+  if (!id) return;
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: [60, 40] });
+  const copies = DB.data.copies.filter(c => c.bookId === id);
+  const book = DB.data.books.find(b => b.id === id);
+  copies.forEach((c, idx) => {
+    if (idx > 0) doc.addPage([60, 40]);
+    const canvas = document.createElement('canvas');
+    JsBarcode(canvas, c.barcode, { format: 'CODE128', width: 2, height: 50, displayValue: true, fontSize: 14, margin: 4 });
+    doc.setFontSize(8);
+    doc.text(book.title.substring(0, 40), 30, 8, { align: 'center' });
+    doc.addImage(canvas.toDataURL('image/png'), 'PNG', 5, 12, 50, 18);
+    doc.setFontSize(7);
+    doc.text(book.author.substring(0, 40), 30, 36, { align: 'center' });
+  });
+  doc.save(`barcode-${id}.pdf`);
+  toast('success', `${copies.length} barcode`);
+}
+
+/* =========================================================
+   SIRKULASI
+   ========================================================= */
+function lookupMember() {
+  const code = document.getElementById('scan-member').value.trim().toUpperCase();
+  if (!code) return;
+  const m = DB.data.members.find(x => x.code.toUpperCase() === code || x.nis === code);
+  if (!m) return Swal.fire('Tidak ditemukan', `Kode "${code}" tidak terdaftar.`, 'warning');
+  if (new Date(m.memberUntil) < new Date()) return Swal.fire('Kadaluarsa', 'Kartu kadaluarsa.', 'warning');
+
+  document.getElementById('loan-member-id').value = m.id;
+  document.getElementById('loan-nis').value = m.nis;
+  document.getElementById('loan-name').value = m.name;
+  document.getElementById('loan-class').value = m.className;
+
+  document.getElementById('found-name').textContent = m.name;
+  document.getElementById('found-info').textContent = `${m.nis} · ${m.className} · ${m.code}`;
+  const pw = document.getElementById('found-photo-wrap');
+  pw.innerHTML = m.photo ? `<img src="${m.photo}" class="photo-avatar" />` : '👤';
+  document.getElementById('member-found').classList.remove('hidden');
+  document.getElementById('scan-member').value = '';
+  toast('success', `Anggota: ${m.name}`);
+}
+
+function clearMember() {
+  ['loan-member-id', 'loan-nis', 'loan-name', 'loan-class'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('member-found').classList.add('hidden');
+}
+
+function lookupBookByBarcode() {
+  const barcode = document.getElementById('scan-book').value.trim().toUpperCase();
+  if (!barcode) return;
+  const copy = DB.data.copies.find(c => c.barcode.toUpperCase() === barcode);
+  if (!copy) return Swal.fire('Tidak ditemukan', `Barcode "${barcode}" tidak terdaftar.`, 'warning');
+  if (copy.status !== 'tersedia') return Swal.fire('Tidak tersedia', `Status: ${copy.status}`, 'warning');
+  const book = DB.data.books.find(b => b.id === copy.bookId);
+  document.getElementById('loan-book').value = book.id;
+  document.getElementById('scan-book').value = '';
+  toast('success', `Buku: ${book.title}`);
+}
+
+document.getElementById('scan-member').addEventListener('keypress', e => { if (e.key === 'Enter') { e.preventDefault(); lookupMember(); } });
+document.getElementById('scan-book').addEventListener('keypress', e => { if (e.key === 'Enter') { e.preventDefault(); lookupBookByBarcode(); } });
+
+function populateLoanBookSelect() {
+  const sel = document.getElementById('loan-book');
+  sel.innerHTML = '<option value="">-- Pilih Buku --</option>' +
+    DB.data.books.filter(b => b.available > 0).map(b => `<option value="${b.id}">${esc(b.title)} (${b.available})</option>`).join('');
+}
+
+function saveLoan() {
+  const memberId = parseInt(document.getElementById('loan-member-id').value);
+  const bookId = parseInt(document.getElementById('loan-book').value);
+  const due = document.getElementById('loan-due').value;
+  if (!memberId) return toast('error', 'Scan kartu dulu');
+  if (!bookId) return toast('error', 'Pilih buku');
+  if (!due) return toast('error', 'Isi tanggal');
+
+  const member = DB.data.members.find(m => m.id === memberId);
+  const book = DB.data.books.find(b => b.id === bookId);
+  if (!book || book.available < 1) return toast('error', 'Stok habis');
+
+  const active = DB.data.loans.filter(l => l.memberId === memberId && l.status === 'dipinjam').length;
+  if (active >= 3) return toast('error', 'Maks 3 buku per anggota');
+
+  const copy = DB.data.copies.find(c => c.bookId === bookId && c.status === 'tersedia');
+  if (!copy) return toast('error', 'Tidak ada eksemplar');
+
+  copy.status = 'dipinjam';
+  book.borrowed += 1;
+  book.available -= 1;
+
+  DB.data.loans.push({
+    id: DB.nextId(), memberId, nis: member.nis, studentName: member.name,
+    className: member.className, memberCode: member.code, bookId, bookTitle: book.title,
+    copyId: copy.id, barcode: copy.barcode, borrowedAt: Date.now(), dueDate: due,
+    returnedAt: null, status: 'dipinjam', createdAt: Date.now(),
+  });
+
+  DB.save();
+  clearMember();
+  document.getElementById('loan-due').value = '';
+  populateLoanBookSelect();
+  renderLoans();
+  toast('success', `Peminjaman: ${member.name}`);
+}
+
+function renderLoans() {
+  const el = document.getElementById('loans-list');
+  const active = DB.data.loans.filter(l => l.status === 'dipinjam');
+  if (active.length === 0) {
+    el.innerHTML = '<p class="text-slate-400 text-xs text-center py-4">Tidak ada peminjaman aktif.</p>';
+    return;
+  }
+  el.innerHTML = active.map(l => {
+    const overdue = new Date(l.dueDate) < new Date();
+    return `
+      <div class="border rounded-lg p-3 ${overdue ? 'border-red-300 bg-red-50' : 'bg-slate-50'}">
+        <div class="flex justify-between items-start gap-2">
+          <div class="min-w-0 flex-1">
+            <div class="font-semibold text-sm truncate">${esc(l.bookTitle)}</div>
+            <div class="text-xs text-slate-500 truncate">👤 ${esc(l.studentName)} · ${esc(l.nis)}</div>
+            <div class="text-xs mt-1 ${overdue ? 'text-red-600 font-semibold' : 'text-slate-500'}">📅 ${fmtDate(l.dueDate)} ${overdue ? '(TERLAMBAT)' : ''}</div>
+          </div>
+          <button onclick="returnLoan(${l.id})" class="bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap">✅ Kembali</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function returnLoan(loanId) {
+  const loan = DB.data.loans.find(l => l.id === loanId);
+  if (!loan) return;
+  const copy = DB.data.copies.find(c => c.id === loan.copyId);
+  const book = DB.data.books.find(b => b.id === loan.bookId);
+  if (copy) copy.status = 'tersedia';
+  if (book) { book.borrowed -= 1; book.available += 1; }
+  loan.status = 'dikembalikan';
+  loan.returnedAt = Date.now();
+  DB.save();
+  renderLoans();
+  populateLoanBookSelect();
+  toast('success', 'Buku dikembalikan');
+}
+
+/* =========================================================
+   LAPORAN
+   ========================================================= */
+let lastReport = null;
+
+function renderReports() {
+  const month = parseInt(document.getElementById('report-month').value);
+  const year = parseInt(document.getElementById('report-year').value) || new Date().getFullYear();
+  const monthNames = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+  const loans = DB.data.loans.filter(l => {
+    const d = new Date(l.borrowedAt);
+    return d.getMonth() + 1 === month && d.getFullYear() === year;
+  });
+
+  const returned = loans.filter(l => l.status === 'dikembalikan');
+  const active = loans.filter(l => l.status === 'dipinjam');
+  const overdue = DB.data.loans.filter(l => l.status === 'dipinjam' && new Date(l.dueDate) < new Date());
+
+  const byClass = {};
+  loans.forEach(l => { byClass[l.className] = (byClass[l.className] || 0) + 1; });
+
+  const byBook = {};
+  loans.forEach(l => { byBook[l.bookTitle] = (byBook[l.bookTitle] || 0) + 1; });
+  const topBooks = Object.entries(byBook).sort((a, b) => b[1] - a[1]).slice(0, 10);
+
+  lastReport = { monthName: monthNames[month], year, loans, returned, active, overdue, byClass, topBooks };
+
+  document.getElementById('report-content').innerHTML = `
+    <div class="bg-white rounded-xl shadow p-5">
+      <h3 class="font-bold text-lg mb-4">📊 Laporan ${monthNames[month]} ${year}</h3>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+        <div class="bg-blue-50 rounded-lg p-3 text-center"><div class="text-2xl font-bold text-blue-600">${loans.length}</div><div class="text-xs text-slate-500">Total</div></div>
+        <div class="bg-green-50 rounded-lg p-3 text-center"><div class="text-2xl font-bold text-green-600">${returned.length}</div><div class="text-xs text-slate-500">Kembali</div></div>
+        <div class="bg-amber-50 rounded-lg p-3 text-center"><div class="text-2xl font-bold text-amber-600">${active.length}</div><div class="text-xs text-slate-500">Aktif</div></div>
+        <div class="bg-red-50 rounded-lg p-3 text-center"><div class="text-2xl font-bold text-red-600">${overdue.length}</div><div class="text-xs text-slate-500">Terlambat</div></div>
+      </div>
+      <h4 class="font-bold mb-2 text-sm">📚 Per Kelas</h4>
+      <table class="w-full text-sm mb-5">
+        <thead class="bg-slate-100 text-left text-xs"><tr><th class="p-2">Kelas</th><th class="p-2 text-right">Jumlah</th></tr></thead>
+        <tbody>${Object.entries(byClass).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<tr class="border-t"><td class="p-2 text-xs">${esc(k)}</td><td class="p-2 text-right font-semibold">${v}</td></tr>`).join('') || '<tr><td colspan="2" class="p-3 text-center text-slate-400 text-xs">Tidak ada</td></tr>'}</tbody>
+      </table>
+      <h4 class="font-bold mb-2 text-sm">🏆 Top Buku</h4>
+      <table class="w-full text-sm">
+        <thead class="bg-slate-100 text-left text-xs"><tr><th class="p-2">#</th><th class="p-2">Judul</th><th class="p-2 text-right">Count</th></tr></thead>
+        <tbody>${topBooks.map(([t, c], i) => `<tr class="border-t"><td class="p-2 text-xs">${i + 1}</td><td class="p-2 text-xs">${esc(t)}</td><td class="p-2 text-right font-semibold">${c}</td></tr>`).join('') || '<tr><td colspan="3" class="p-3 text-center text-slate-400 text-xs">Tidak ada</td></tr>'}</tbody>
+      </table>
+    </div>`;
+}
+
+function exportReportPDF() {
+  if (!lastReport) return toast('warning', 'Tampilkan laporan dulu');
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const { monthName, year, loans, returned, active, overdue, byClass, topBooks } = lastReport;
+
+  doc.setFontSize(16); doc.setFont('helvetica', 'bold');
+  doc.text('LAPORAN PERPUSTAKAAN', 105, 15, { align: 'center' });
+  doc.setFontSize(11); doc.setFont('helvetica', 'normal');
+  doc.text(DB.data.settings.schoolName, 105, 22, { align: 'center' });
+  doc.text(`Periode: ${monthName} ${year}`, 105, 28, { align: 'center' });
+  doc.line(15, 32, 195, 32);
+
+  let y = 42;
+  doc.setFontSize(10); doc.setFont('helvetica', 'bold');
+  doc.text('Ringkasan:', 15, y); y += 6;
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Total: ${loans.length}`, 20, y); y += 5;
+  doc.text(`Dikembalikan: ${returned.length}`, 20, y); y += 5;
+  doc.text(`Dipinjam: ${active.length}`, 20, y); y += 5;
+  doc.text(`Terlambat: ${overdue.length}`, 20, y); y += 8;
+
+  doc.setFont('helvetica', 'bold'); doc.text('Per Kelas:', 15, y); y += 6;
+  doc.setFont('helvetica', 'normal');
+  Object.entries(byClass).sort((a, b) => b[1] - a[1]).forEach(([k, v]) => { doc.text(`${k}: ${v}`, 20, y); y += 5; });
+
+  if (y > 240) { doc.addPage(); y = 20; }
+  y += 5;
+  doc.setFont('helvetica', 'bold'); doc.text('Top Buku:', 15, y); y += 6;
+  doc.setFont('helvetica', 'normal');
+  topBooks.forEach(([t, c], i) => { doc.text(`${i + 1}. ${t.substring(0, 60)} — ${c}x`, 20, y); y += 5; });
+
+  if (y > 230) { doc.addPage(); y = 20; } else { y += 15; }
+  doc.text(DB.data.settings.librarian, 160, y);
+  doc.text('Kepala Perpustakaan', 160, y + 5);
+
+  doc.save(`laporan-${monthName}-${year}.pdf`);
+  toast('success', 'PDF dibuat');
+}
+
+/* =========================================================
+   SETTINGS & BACKUP
+   ========================================================= */
+function renderSettings() {
+  document.getElementById('set-school').value = DB.data.settings.schoolName;
+  document.getElementById('set-librarian').value = DB.data.settings.librarian;
+  document.getElementById('set-apps-script-url').value = DB.data.settings.appsScriptUrl || APPS_SCRIPT_URL;
+  
+  const statusEl = document.getElementById('apps-script-status');
+  if (statusEl && isConnected()) {
+    statusEl.classList.remove('hidden');
+    statusEl.className = 'mt-4 p-3 rounded-lg text-sm bg-green-50 border border-green-200 text-green-800';
+    statusEl.innerHTML = `✅ Apps Script terhubung — Auto-sync ${DB.data.settings.autosync ? 'AKTIF' : 'NONAKTIF'}`;
+  }
+}
+
+function saveSettings() {
+  DB.data.settings.schoolName = document.getElementById('set-school').value.trim();
+  DB.data.settings.librarian = document.getElementById('set-librarian').value.trim();
+  DB.save();
+  toast('success', 'Pengaturan disimpan');
+}
+
+function saveAppsScriptUrl() {
+  const url = document.getElementById('set-apps-script-url').value.trim();
+  if (url && !url.includes('script.google.com')) {
+    return Swal.fire('URL Tidak Valid', 'URL harus dari script.google.com', 'warning');
+  }
+  DB.data.settings.appsScriptUrl = url || APPS_SCRIPT_URL;
+  DB.save();
+  toast('success', 'URL disimpan');
+  testConnection();
+}
+
+function exportBackup() {
+  const blob = new Blob([JSON.stringify(DB.data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `sipus-backup-${new Date().toISOString().split('T')[0]}.json`;
+  a.click();
+  toast('success', 'Backup diunduh');
+}
+
+function importBackup(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      Swal.fire({
+        title: 'Restore data?', text: 'Data saat ini akan diganti.', icon: 'warning',
+        showCancelButton: true, confirmButtonText: 'Ya', confirmButtonColor: '#dc2626',
+      }).then(res => {
+        if (!res.isConfirmed) return;
+        DB.data = data;
+        DB.save();
+        toast('success', 'Data direstore');
+        setTimeout(() => location.reload(), 800);
+      });
+    } catch (err) { Swal.fire('Error', 'File backup tidak valid', 'error'); }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+function resetAllData() {
+  Swal.fire({
+    title: 'Reset semua data?', text: 'Data buku, anggota, peminjaman akan dihapus.', icon: 'error',
+    showCancelButton: true, confirmButtonText: 'Ya, reset', confirmButtonColor: '#dc2626',
+  }).then(res => {
+    if (!res.isConfirmed) return;
+    localStorage.removeItem(DB.KEY);
+    localStorage.removeItem(DB.SESSION_KEY);
+    location.reload();
+  });
+}
+
+/* =========================================================
+   CAMERA SCANNER
+   ========================================================= */
+let html5QrCode = null;
+let currentScanMode = null;
+let lastScan = null;
+let lastScanTime = 0;
+let torchOn = false;
+
+async function openCameraScanner(mode) {
+  currentScanMode = mode;
+  document.getElementById('camera-title').textContent = mode === 'member' ? 'Scan Kartu Anggota' : 'Scan Barcode Buku';
+  openModal('camera-modal');
+  document.getElementById('camera-manual-input').value = '';
+  document.getElementById('camera-status').textContent = 'Inisialisasi...';
+  document.getElementById('btn-torch').classList.add('hidden');
+
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    document.getElementById('camera-status').textContent = '❌ Browser tidak support';
+    return toast('error', 'Browser tidak mendukung kamera');
+  }
+
+  try {
+    html5QrCode = new Html5Qrcode('qr-reader', {
+      verbose: false,
+      formatsToSupport: [
+        Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.CODE_39,
+        Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.QR_CODE, Html5QrcodeSupportedFormats.UPC_A,
+        Html5QrcodeSupportedFormats.UPC_E, Html5QrcodeSupportedFormats.ITF,
+      ],
+    });
+    await html5QrCode.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: { width: 260, height: 160 } },
+      onScanSuccess, onScanFailure
+    );
+    document.getElementById('camera-status').textContent = '✅ Kamera aktif';
+    setTimeout(checkTorch, 500);
+  } catch (err) {
+    console.error('Camera error:', err);
+    document.getElementById('camera-status').textContent = '❌ Gagal';
+    let msg = 'Tidak bisa akses kamera. ';
+    if (err.name === 'NotAllowedError') msg += 'Izin ditolak.';
+    else if (err.name === 'NotFoundError') msg += 'Tidak ada kamera.';
+    else if (location.protocol !== 'https:' && !['localhost', '127.0.0.1'].includes(location.hostname)) msg += 'Harus HTTPS / localhost.';
+    else msg += err.message || 'Gunakan input manual.';
+    Swal.fire({ icon: 'warning', title: 'Kamera Tidak Tersedia', html: msg });
+  }
+}
+
+function onScanSuccess(text) {
+  const now = Date.now();
+  if (text === lastScan && now - lastScanTime < 2000) return;
+  lastScan = text;
+  lastScanTime = now;
+  if (navigator.vibrate) navigator.vibrate(100);
+  beep();
+  document.getElementById('camera-status').textContent = `✅ ${text}`;
+  const mode = currentScanMode;
+  closeCameraScanner().then(() => {
+    if (mode === 'member') { document.getElementById('scan-member').value = text; lookupMember(); }
+    else { document.getElementById('scan-book').value = text; lookupBookByBarcode(); }
+  });
+}
+
+let failCount = 0;
+function onScanFailure() {
+  failCount++;
+  if (failCount % 50 === 0) document.getElementById('camera-status').textContent = '🔍 Mencari...';
+}
+
+async function checkTorch() {
+  try {
+    if (!html5QrCode) return;
+    const cap = html5QrCode.getRunningTrackCapabilities();
+    if (cap && cap.torch) document.getElementById('btn-torch').classList.remove('hidden');
+  } catch (e) {}
+}
+
+async function toggleCameraTorch() {
+  if (!html5QrCode) return;
+  try {
+    torchOn = !torchOn;
+    await html5QrCode.applyVideoConstraints({ advanced: [{ torch: torchOn }] });
+    document.getElementById('btn-torch').textContent = torchOn ? '🔦 ON' : '🔦 Senter';
+  } catch (e) { toast('warning', 'Senter tidak didukung'); }
+}
+
+async function closeCameraScanner() {
+  try {
+    if (html5QrCode) {
+      const state = html5QrCode.getState();
+      if (state === 2 || state === 3) await html5QrCode.stop();
+      html5QrCode.clear();
+      html5QrCode = null;
+    }
+  } catch (e) { html5QrCode = null; }
+  closeModal('camera-modal');
+  document.getElementById('btn-torch').classList.add('hidden');
+  torchOn = false;
+  lastScan = null;
+  failCount = 0;
+}
+
+function submitManualScan() {
+  const val = document.getElementById('camera-manual-input').value.trim();
+  if (!val) return;
+  const mode = currentScanMode;
+  closeCameraScanner().then(() => {
+    if (mode === 'member') { document.getElementById('scan-member').value = val; lookupMember(); }
+    else { document.getElementById('scan-book').value = val; lookupBookByBarcode(); }
+  });
+}
+
+document.getElementById('camera-manual-input').addEventListener('keypress', e => {
+  if (e.key === 'Enter') { e.preventDefault(); submitManualScan(); }
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (!document.getElementById('camera-modal').classList.contains('hidden')) closeCameraScanner();
+    if (!document.getElementById('webcam-modal').classList.contains('hidden')) closeWebcam();
+  }
+});
+
+function beep() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = 1200;
+    osc.type = 'sine';
+    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.15);
+    setTimeout(() => ctx.close(), 300);
+  } catch (e) {}
+}
+
+/* =========================================================
+   HARDWARE BARCODE SCANNER LISTENER (GLOBAL)
+   ========================================================= */
+let barcodeBuffer = '';
+let scanLastKeyTime = Date.now();
+
+window.addEventListener('keydown', function(e) {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+  const currentTime = Date.now();
+  if (currentTime - scanLastKeyTime > 50) barcodeBuffer = '';
+  scanLastKeyTime = currentTime;
+
+  if (e.key.length === 1) {
+    barcodeBuffer += e.key;
+  } else if (e.key === 'Enter' && barcodeBuffer.length > 3) {
+    const scannedCode = barcodeBuffer.toUpperCase();
+    barcodeBuffer = '';
+    
+    const s = DB.getSession();
+    if (!s || s.role === 'siswa') return;
+
+    switchTab('loans');
+
+    if (scannedCode.startsWith('AGT') || /^\d+$/.test(scannedCode)) {
+      document.getElementById('scan-member').value = scannedCode;
+      lookupMember();
+    } else {
+      document.getElementById('scan-book').value = scannedCode;
+      lookupBookByBarcode();
+    }
+  }
+});
+
+/* =========================================================
+   INIT
+   ========================================================= */
+document.addEventListener('DOMContentLoaded', () => {
+  const libs = { XLSX: typeof XLSX, Papa: typeof Papa, Swal: typeof Swal, JsBarcode: typeof JsBarcode };
+  console.log('📚 SIPUS SMAN 1 PAMIJAHAN — Library status:', libs);
+
+  DB.init();
+  console.log('📚 DB loaded:', {
+    books: DB.data.books.length,
+    members: DB.data.members.length,
+    loans: DB.data.loans.length,
+  });
+
+  // Set default role
+  selectRole('admin');
+
+  // Set autosync toggle
+  const autosyncToggle = document.getElementById('autosync-toggle');
+  if (autosyncToggle) {
+    autosyncToggle.checked = DB.data.settings.autosync;
+    autosyncToggle.addEventListener('change', (e) => {
+      DB.data.settings.autosync = e.target.checked;
+      DB.save();
+      toast('success', e.target.checked ? 'Auto-sync AKTIF' : 'Auto-sync NONAKTIF');
+      const statusEl = document.getElementById('autosync-status');
+      if (statusEl) {
+        statusEl.className = `text-xs px-3 py-1.5 rounded-lg ${e.target.checked ? 'bg-green-100 text-green-800' : 'bg-slate-200 text-slate-600'} flex items-center gap-1`;
+        statusEl.innerHTML = `<span class="sync-dot" style="background: ${e.target.checked ? '#22c55e' : '#94a3b8'};"></span> ${e.target.checked ? 'Aktif' : 'Nonaktif'}`;
+      }
+    });
+  }
+
+  document.getElementById('report-year').value = new Date().getFullYear();
+
+  const session = DB.getSession();
+  if (session) showApp();
+});
+</script>
+
+</body>
+</html>
